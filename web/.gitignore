@@ -22,14 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-# Env files with secrets
-.env
-api/.env
-
-# Go
-*.exe
-
-# AI
-CLAUDE.md
-
