@@ -32,4 +32,5 @@ api/.env
 
 # AI
 CLAUDE.md
+.codex
 
