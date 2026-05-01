@@ -19,15 +19,37 @@ export interface ExpenseSplit {
   share_amount: number;
 }
 
+export interface ExpenseComment {
+  id: number;
+  expense_id: number;
+  user_id: number;
+  user_name: string;
+  body: string;
+  created_at: string;
+}
+
+export interface ExpenseHistory {
+  id: number;
+  expense_id: number;
+  user_id: number;
+  user_name: string;
+  action: string;
+  summary: string;
+  created_at: string;
+}
+
 export interface ExpenseWithSplits {
   expense: Expense;
   splits: ExpenseSplit[];
+  comments?: ExpenseComment[];
+  history?: ExpenseHistory[];
 }
 
 export interface SplitEntry {
   user_id: number;
   share_amount?: number;
   percentage?: number;
+  shares?: number;
 }
 
 export interface CreateExpensePayload {
@@ -36,7 +58,7 @@ export interface CreateExpensePayload {
   category?: string;
   date?: string;
   paid_by?: number;
-  split_type: "equal" | "exact" | "percentage";
+  split_type: "equal" | "exact" | "percentage" | "shares";
   splits: SplitEntry[];
 }
 
@@ -94,4 +116,14 @@ export function updateExpense(
 
 export function deleteExpense(groupId: number, expenseId: number) {
   return api.delete(`/api/groups/${groupId}/expenses/${expenseId}`);
+}
+
+export function addExpenseComment(
+  groupId: number,
+  expenseId: number,
+  body: string
+): Promise<ExpenseComment> {
+  return api
+    .post(`/api/groups/${groupId}/expenses/${expenseId}/comments`, { body })
+    .then((r) => r.data);
 }

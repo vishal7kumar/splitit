@@ -20,3 +20,22 @@ type ExpenseSplit struct {
 	UserID      int     `db:"user_id" json:"user_id"`
 	ShareAmount float64 `db:"share_amount" json:"share_amount"`
 }
+
+type ExpenseComment struct {
+	ID        int       `db:"id" json:"id"`
+	ExpenseID int       `db:"expense_id" json:"expense_id"`
+	UserID    int       `db:"user_id" json:"user_id"`
+	UserName  string    `db:"user_name" json:"user_name"`
+	Body      string    `db:"body" json:"body"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+}
+
+type ExpenseHistory struct {
+	ID        int       `db:"id" json:"id"`
+	ExpenseID int       `db:"expense_id" json:"expense_id"`
+	UserID    int       `db:"user_id" json:"user_id"`
+	UserName  string    `db:"user_name" json:"user_name"`
+	Action    string    `db:"action" json:"action"`
+	Summary   string    `db:"summary" json:"summary"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+}

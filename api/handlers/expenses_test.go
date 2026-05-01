@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -134,6 +135,194 @@ func TestCreateExpenseExactSplit(t *testing.T) {
 	w = doJSON(r, "POST", fmt.Sprintf("/api/groups/%d/expenses", groupID), body, cookies...)
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCreateExpenseSharesSplit(t *testing.T) {
+	database := setupTestDB(t)
+	r := setupRouter(database)
+
+	cookies := registerAndLogin(r, "share-admin@test.com", "pass123", "Admin")
+	doJSON(r, "POST", "/api/auth/register", map[string]string{
+		"email": "share-member@test.com", "password": "pass123", "name": "Member",
+	})
+	w := doJSON(r, "POST", "/api/groups", map[string]string{"name": "Share Group"}, cookies...)
+	var group map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &group)
+	groupID := int(group["id"].(float64))
+	doJSON(r, "POST", fmt.Sprintf("/api/groups/%d/members", groupID),
+		map[string]string{"email": "share-member@test.com"}, cookies...)
+
+	w = doJSON(r, "GET", fmt.Sprintf("/api/groups/%d", groupID), nil, cookies...)
+	var detail map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &detail)
+	members := detail["members"].([]interface{})
+	id0 := int(members[0].(map[string]interface{})["user_id"].(float64))
+	id1 := int(members[1].(map[string]interface{})["user_id"].(float64))
+
+	body := map[string]interface{}{
+		"amount":      120.0,
+		"description": "Shares dinner",
+		"split_type":  "shares",
+		"splits": []map[string]interface{}{
+			{"user_id": id0, "shares": 1.0},
+			{"user_id": id1, "shares": 2.0},
+		},
+	}
+
+	w = doJSON(r, "POST", fmt.Sprintf("/api/groups/%d/expenses", groupID), body, cookies...)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	splits := resp["splits"].([]interface{})
+	sharesByUser := map[int]float64{}
+	for _, s := range splits {
+		split := s.(map[string]interface{})
+		sharesByUser[int(split["user_id"].(float64))] = split["share_amount"].(float64)
+	}
+	if sharesByUser[id0] != 40.0 || sharesByUser[id1] != 80.0 {
+		t.Fatalf("expected shares split 40/80, got %.2f/%.2f", sharesByUser[id0], sharesByUser[id1])
+	}
+}
+
+func TestExpenseDetailIncludesCommentsAndHistory(t *testing.T) {
+	database := setupTestDB(t)
+	r := setupRouter(database)
+
+	registerUser(t, r, "detail-member@test.com", "pass123", "Detail Member")
+	cookies := registerAndLogin(r, "detail-admin@test.com", "pass123", "Detail Admin")
+	groupID := createGroup(t, r, cookies, "Detail Group")
+	addMember(t, r, cookies, groupID, "detail-member@test.com")
+	detail := getGroupDetail(t, r, cookies, groupID)
+	adminID := memberIDByEmail(t, detail, "detail-admin@test.com")
+	memberID := memberIDByEmail(t, detail, "detail-member@test.com")
+
+	resp := createExpense(t, r, cookies, groupID, map[string]interface{}{
+		"amount":      90.0,
+		"description": "Detail dinner",
+		"split_type":  "equal",
+		"splits": []map[string]interface{}{
+			{"user_id": adminID},
+			{"user_id": memberID},
+		},
+	})
+	expenseID := int(resp["expense"].(map[string]interface{})["id"].(float64))
+	addExpenseComment(t, r, cookies, groupID, expenseID, "Looks good")
+
+	expenseDetail := getExpenseDetail(t, r, cookies, groupID, expenseID)
+	if len(expenseDetail["splits"].([]interface{})) != 2 {
+		t.Fatalf("expected 2 splits, got %#v", expenseDetail["splits"])
+	}
+	comments := expenseDetail["comments"].([]interface{})
+	if len(comments) != 1 {
+		t.Fatalf("expected 1 comment, got %d", len(comments))
+	}
+	comment := comments[0].(map[string]interface{})
+	if comment["body"] != "Looks good" || comment["user_name"] != "Detail Admin" {
+		t.Fatalf("unexpected comment payload: %#v", comment)
+	}
+	history := expenseDetail["history"].([]interface{})
+	if len(history) != 2 {
+		t.Fatalf("expected create and comment history, got %d", len(history))
+	}
+	if history[0].(map[string]interface{})["action"] != "comment" {
+		t.Fatalf("expected newest history to be comment, got %#v", history[0])
+	}
+}
+
+func TestUpdateExpenseRecordsHistorySummary(t *testing.T) {
+	database := setupTestDB(t)
+	r := setupRouter(database)
+
+	cookies := registerAndLogin(r, "history-admin@test.com", "pass123", "History Admin")
+	groupID := createGroup(t, r, cookies, "History Group")
+	detail := getGroupDetail(t, r, cookies, groupID)
+	uid := memberIDByEmail(t, detail, "history-admin@test.com")
+
+	resp := createExpense(t, r, cookies, groupID, map[string]interface{}{
+		"amount":      25.0,
+		"description": "Old",
+		"category":    "general",
+		"split_type":  "equal",
+		"splits":      []map[string]interface{}{{"user_id": uid}},
+	})
+	expenseID := int(resp["expense"].(map[string]interface{})["id"].(float64))
+
+	w := doJSON(r, "PUT", fmt.Sprintf("/api/groups/%d/expenses/%d", groupID, expenseID), map[string]interface{}{
+		"amount":      30.0,
+		"description": "New",
+		"category":    "food",
+		"split_type":  "equal",
+		"splits":      []map[string]interface{}{{"user_id": uid}},
+	}, cookies...)
+	assertStatus(t, w, http.StatusOK)
+
+	expenseDetail := getExpenseDetail(t, r, cookies, groupID, expenseID)
+	history := expenseDetail["history"].([]interface{})
+	if len(history) != 2 {
+		t.Fatalf("expected create and update history, got %d", len(history))
+	}
+	update := history[0].(map[string]interface{})
+	if update["action"] != "update" || !strings.Contains(update["summary"].(string), "amount from 25.00 to 30.00") {
+		t.Fatalf("unexpected update history: %#v", update)
+	}
+}
+
+func TestExpenseCommentValidationAndAccess(t *testing.T) {
+	database := setupTestDB(t)
+	r := setupRouter(database)
+
+	cookies := registerAndLogin(r, "comment-admin@test.com", "pass123", "Comment Admin")
+	outsiderCookies := registerAndLogin(r, "outsider@test.com", "pass123", "Outsider")
+	groupID := createGroup(t, r, cookies, "Comment Group")
+	detail := getGroupDetail(t, r, cookies, groupID)
+	uid := memberIDByEmail(t, detail, "comment-admin@test.com")
+
+	resp := createExpense(t, r, cookies, groupID, map[string]interface{}{
+		"amount":     10.0,
+		"split_type": "equal",
+		"splits":     []map[string]interface{}{{"user_id": uid}},
+	})
+	expenseID := int(resp["expense"].(map[string]interface{})["id"].(float64))
+
+	w := doJSON(r, "POST", fmt.Sprintf("/api/groups/%d/expenses/%d/comments", groupID, expenseID), map[string]string{"body": "   "}, cookies...)
+	assertStatus(t, w, http.StatusBadRequest)
+
+	w = doJSON(r, "GET", fmt.Sprintf("/api/groups/%d/expenses/%d", groupID, expenseID), nil, outsiderCookies...)
+	assertStatus(t, w, http.StatusForbidden)
+
+	w = doJSON(r, "POST", fmt.Sprintf("/api/groups/%d/expenses/%d/comments", groupID, expenseID), map[string]string{"body": "Nope"}, outsiderCookies...)
+	assertStatus(t, w, http.StatusForbidden)
+}
+
+func TestDeleteExpenseCascadesCommentsAndHistory(t *testing.T) {
+	database := setupTestDB(t)
+	r := setupRouter(database)
+
+	cookies := registerAndLogin(r, "cascade-admin@test.com", "pass123", "Cascade Admin")
+	groupID := createGroup(t, r, cookies, "Cascade Group")
+	detail := getGroupDetail(t, r, cookies, groupID)
+	uid := memberIDByEmail(t, detail, "cascade-admin@test.com")
+
+	resp := createExpense(t, r, cookies, groupID, map[string]interface{}{
+		"amount":     10.0,
+		"split_type": "equal",
+		"splits":     []map[string]interface{}{{"user_id": uid}},
+	})
+	expenseID := int(resp["expense"].(map[string]interface{})["id"].(float64))
+	addExpenseComment(t, r, cookies, groupID, expenseID, "Before delete")
+
+	w := doJSON(r, "DELETE", fmt.Sprintf("/api/groups/%d/expenses/%d", groupID, expenseID), nil, cookies...)
+	assertStatus(t, w, http.StatusOK)
+
+	var commentCount, historyCount int
+	database.Get(&commentCount, "SELECT COUNT(*) FROM expense_comments WHERE expense_id = $1", expenseID)
+	database.Get(&historyCount, "SELECT COUNT(*) FROM expense_history WHERE expense_id = $1", expenseID)
+	if commentCount != 0 || historyCount != 0 {
+		t.Fatalf("expected cascaded comments/history, got comments=%d history=%d", commentCount, historyCount)
 	}
 }
 

@@ -1,0 +1,920 @@
+openapi: 3.0.3
+info:
+  title: Splitit API
+  version: 0.1.0
+  description: API for Splitit, a Splitwise-style expense sharing app.
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+tags:
+  - name: Auth
+  - name: Groups
+  - name: Members
+  - name: Expenses
+  - name: Balances
+  - name: Settlements
+security:
+  - cookieAuth: []
+paths:
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in and set the JWT cookie
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Logged in
+          headers:
+            Set-Cookie:
+              description: HTTP-only JWT cookie named token.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Log out and clear the JWT cookie
+      security: []
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get the current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/groups:
+    get:
+      tags: [Groups]
+      summary: List groups for the current user
+      responses:
+        "200":
+          description: Groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Group"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Groups]
+      summary: Create a group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupRequest"
+      responses:
+        "201":
+          description: Group created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/groups/{id}:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    get:
+      tags: [Groups]
+      summary: Get a group with members
+      responses:
+        "200":
+          description: Group detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupDetail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Groups]
+      summary: Update a group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupRequest"
+      responses:
+        "200":
+          description: Group updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    delete:
+      tags: [Groups]
+      summary: Delete a group
+      responses:
+        "200":
+          description: Group deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/groups/{id}/members:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    post:
+      tags: [Members]
+      summary: Add a member by email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddMemberRequest"
+      responses:
+        "200":
+          description: Member added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/groups/{id}/members/{userId}:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+      - $ref: "#/components/parameters/UserId"
+    delete:
+      tags: [Members]
+      summary: Remove a member
+      responses:
+        "200":
+          description: Member removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/groups/{id}/expenses:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    get:
+      tags: [Expenses]
+      summary: List expenses in a group
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Case-insensitive search on description.
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: paid_by
+          in: query
+          schema:
+            type: integer
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Expenses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Expense"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Expenses]
+      summary: Create an expense with splits
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseRequest"
+      responses:
+        "201":
+          description: Expense created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseWithSplits"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/groups/{id}/expenses/{eid}:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+      - $ref: "#/components/parameters/ExpenseId"
+    get:
+      tags: [Expenses]
+      summary: Get an expense with splits
+      responses:
+        "200":
+          description: Expense detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseWithSplits"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Expenses]
+      summary: Update an expense and replace its splits
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseRequest"
+      responses:
+        "200":
+          description: Expense updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseWithSplits"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [Expenses]
+      summary: Delete an expense
+      responses:
+        "200":
+          description: Expense deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/groups/{id}/expenses/{eid}/comments:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+      - $ref: "#/components/parameters/ExpenseId"
+    post:
+      tags: [Expenses]
+      summary: Add a comment to an expense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseCommentRequest"
+      responses:
+        "201":
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseComment"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/groups/{id}/balances:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    get:
+      tags: [Balances]
+      summary: Get group balances and simplified debts
+      responses:
+        "200":
+          description: Balances
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupBalances"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/user/total-balance:
+    get:
+      tags: [Balances]
+      summary: Get current user's total balance across groups
+      responses:
+        "200":
+          description: Total balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TotalBalance"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/groups/{id}/settlements:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    get:
+      tags: [Settlements]
+      summary: List group settlements
+      responses:
+        "200":
+          description: Settlements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SettlementWithNames"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Settlements]
+      summary: Record a settlement paid by the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettlementRequest"
+      responses:
+        "201":
+          description: Settlement recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settlement"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+  parameters:
+    GroupId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    ExpenseId:
+      name: eid
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Missing, invalid, or expired token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Authenticated user is not allowed to access this resource
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    User:
+      type: object
+      required: [id, email, name, created_at, updated_at]
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: vishal@example.com
+        name:
+          type: string
+          example: Vishal
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    RegisterRequest:
+      type: object
+      required: [email, password, name]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 1
+        name:
+          type: string
+          minLength: 1
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 1
+    Group:
+      type: object
+      required: [id, name, currency, created_by, created_at]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        currency:
+          type: string
+          example: INR
+        created_by:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+    GroupRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        currency:
+          type: string
+          default: INR
+          example: INR
+    GroupMemberWithUser:
+      type: object
+      required: [group_id, user_id, role, joined_at, name, email]
+      properties:
+        group_id:
+          type: integer
+        user_id:
+          type: integer
+        role:
+          type: string
+          enum: [admin, member]
+        joined_at:
+          type: string
+          format: date-time
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+    GroupDetail:
+      type: object
+      required: [group, members]
+      properties:
+        group:
+          $ref: "#/components/schemas/Group"
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupMemberWithUser"
+    AddMemberRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+    Expense:
+      type: object
+      required:
+        - id
+        - group_id
+        - paid_by
+        - amount
+        - description
+        - category
+        - date
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+        group_id:
+          type: integer
+        paid_by:
+          type: integer
+        amount:
+          type: number
+          format: double
+          example: 1200.5
+        description:
+          type: string
+        category:
+          type: string
+          default: general
+        date:
+          type: string
+          format: date
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ExpenseSplit:
+      type: object
+      required: [id, expense_id, user_id, share_amount]
+      properties:
+        id:
+          type: integer
+        expense_id:
+          type: integer
+        user_id:
+          type: integer
+        share_amount:
+          type: number
+          format: double
+    ExpenseComment:
+      type: object
+      required: [id, expense_id, user_id, user_name, body, created_at]
+      properties:
+        id:
+          type: integer
+        expense_id:
+          type: integer
+        user_id:
+          type: integer
+        user_name:
+          type: string
+        body:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    ExpenseHistory:
+      type: object
+      required: [id, expense_id, user_id, user_name, action, summary, created_at]
+      properties:
+        id:
+          type: integer
+        expense_id:
+          type: integer
+        user_id:
+          type: integer
+        user_name:
+          type: string
+        action:
+          type: string
+        summary:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    ExpenseCommentRequest:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+    SplitEntry:
+      type: object
+      required: [user_id]
+      properties:
+        user_id:
+          type: integer
+        share_amount:
+          type: number
+          format: double
+          description: Required when split_type is exact.
+        percentage:
+          type: number
+          format: double
+          description: Required when split_type is percentage.
+        shares:
+          type: number
+          format: double
+          description: Required when split_type is shares.
+    ExpenseRequest:
+      type: object
+      required: [amount, split_type, splits]
+      properties:
+        amount:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+        description:
+          type: string
+          default: ""
+        category:
+          type: string
+          default: general
+        date:
+          type: string
+          format: date
+          description: Defaults to the database current date when omitted on create.
+        paid_by:
+          type: integer
+          description: Defaults to the current user when omitted or zero.
+        split_type:
+          type: string
+          enum: [equal, exact, percentage, shares]
+        splits:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/SplitEntry"
+    ExpenseWithSplits:
+      type: object
+      required: [expense, splits, comments, history]
+      properties:
+        expense:
+          $ref: "#/components/schemas/Expense"
+        splits:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpenseSplit"
+        comments:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpenseComment"
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpenseHistory"
+    BalanceEntry:
+      type: object
+      required: [user_id, name, balance]
+      properties:
+        user_id:
+          type: integer
+        name:
+          type: string
+        balance:
+          type: number
+          format: double
+          description: Positive means the user is owed money; negative means the user owes money.
+    SimplifiedDebt:
+      type: object
+      required: [from, from_name, to, to_name, amount]
+      properties:
+        from:
+          type: integer
+        from_name:
+          type: string
+        to:
+          type: integer
+        to_name:
+          type: string
+        amount:
+          type: number
+          format: double
+    GroupBalances:
+      type: object
+      required: [balances, debts]
+      properties:
+        balances:
+          type: array
+          items:
+            $ref: "#/components/schemas/BalanceEntry"
+        debts:
+          type: array
+          items:
+            $ref: "#/components/schemas/SimplifiedDebt"
+    TotalBalance:
+      type: object
+      required: [total_balance, groups]
+      properties:
+        total_balance:
+          type: number
+          format: double
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupBalance"
+    GroupBalance:
+      type: object
+      required: [group_id, name, currency, balance]
+      properties:
+        group_id:
+          type: integer
+        name:
+          type: string
+        currency:
+          type: string
+        balance:
+          type: number
+          format: double
+    Settlement:
+      type: object
+      required: [id, group_id, paid_by, paid_to, amount, date, created_at]
+      properties:
+        id:
+          type: integer
+        group_id:
+          type: integer
+        paid_by:
+          type: integer
+        paid_to:
+          type: integer
+        amount:
+          type: number
+          format: double
+        date:
+          type: string
+          format: date
+        created_at:
+          type: string
+          format: date-time
+    SettlementWithNames:
+      allOf:
+        - $ref: "#/components/schemas/Settlement"
+        - type: object
+          required: [paid_by_name, paid_to_name]
+          properties:
+            paid_by_name:
+              type: string
+            paid_to_name:
+              type: string
+    SettlementRequest:
+      type: object
+      required: [paid_to, amount]
+      properties:
+        paid_to:
+          type: integer
+        amount:
+          type: number
+          format: double
+          exclusiveMinimum: true
+          minimum: 0
+        date:
+          type: string
+          format: date
+          description: Defaults to the database current date when omitted.
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string

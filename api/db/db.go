@@ -1,8 +1,8 @@
 package db
 
 import (
-	"github.com/jmoiron/sqlx"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
 )
 
 func Connect(databaseURL string) (*sqlx.DB, error) {
@@ -53,6 +53,21 @@ func Migrate(db *sqlx.DB) error {
 			expense_id   INTEGER NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
 			user_id      INTEGER NOT NULL REFERENCES users(id),
 			share_amount NUMERIC(12,2) NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS expense_comments (
+			id          SERIAL PRIMARY KEY,
+			expense_id  INTEGER NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
+			user_id     INTEGER NOT NULL REFERENCES users(id),
+			body        TEXT NOT NULL,
+			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE TABLE IF NOT EXISTS expense_history (
+			id          SERIAL PRIMARY KEY,
+			expense_id  INTEGER NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
+			user_id     INTEGER NOT NULL REFERENCES users(id),
+			action      TEXT NOT NULL,
+			summary     TEXT NOT NULL,
+			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
 		`CREATE TABLE IF NOT EXISTS settlements (
 			id          SERIAL PRIMARY KEY,

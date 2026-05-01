@@ -22,6 +22,7 @@ type splitEntry struct {
 	UserID      int     `json:"user_id"`
 	ShareAmount float64 `json:"share_amount,omitempty"`
 	Percentage  float64 `json:"percentage,omitempty"`
+	Shares      float64 `json:"shares,omitempty"`
 }
 
 type createExpenseRequest struct {
@@ -30,8 +31,12 @@ type createExpenseRequest struct {
 	Category    string       `json:"category"`
 	Date        string       `json:"date"`
 	PaidBy      int          `json:"paid_by"`
-	SplitType   string       `json:"split_type" binding:"required"` // "equal", "exact", "percentage"
+	SplitType   string       `json:"split_type" binding:"required"` // "equal", "exact", "percentage", "shares"
 	Splits      []splitEntry `json:"splits" binding:"required"`
+}
+
+type commentRequest struct {
+	Body string `json:"body" binding:"required"`
 }
 
 func (h *ExpenseHandler) Create(c *gin.Context) {
@@ -113,6 +118,12 @@ func (h *ExpenseHandler) Create(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create splits"})
 			return
 		}
+	}
+
+	actorName := h.userName(userID)
+	if err := h.recordHistory(tx, expense.ID, userID, "create", fmt.Sprintf("%s added this expense", actorName)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create history"})
+		return
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -212,7 +223,15 @@ func (h *ExpenseHandler) Get(c *gin.Context) {
 	var splits []models.ExpenseSplit
 	h.DB.Select(&splits, "SELECT * FROM expense_splits WHERE expense_id = $1", expenseID)
 
-	c.JSON(http.StatusOK, gin.H{"expense": expense, "splits": splits})
+	comments := h.getExpenseComments(expenseID)
+	history := h.getExpenseHistory(expenseID)
+
+	c.JSON(http.StatusOK, gin.H{
+		"expense":  expense,
+		"splits":   splits,
+		"comments": comments,
+		"history":  history,
+	})
 }
 
 func (h *ExpenseHandler) Update(c *gin.Context) {
@@ -233,6 +252,15 @@ func (h *ExpenseHandler) Update(c *gin.Context) {
 		return
 	}
 
+	var oldExpense models.Expense
+	err = h.DB.Get(&oldExpense, "SELECT * FROM expenses WHERE id = $1 AND group_id = $2", expenseID, groupID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Expense not found"})
+		return
+	}
+	var oldSplits []models.ExpenseSplit
+	h.DB.Select(&oldSplits, "SELECT * FROM expense_splits WHERE expense_id = $1", expenseID)
+
 	var req createExpenseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
@@ -244,6 +272,9 @@ func (h *ExpenseHandler) Update(c *gin.Context) {
 	}
 	if req.Category == "" {
 		req.Category = "general"
+	}
+	if req.Date == "" {
+		req.Date = oldExpense.Date
 	}
 
 	if req.Date != "" {
@@ -287,6 +318,13 @@ func (h *ExpenseHandler) Update(c *gin.Context) {
 		)
 	}
 
+	actorName := h.userName(userID)
+	summary := h.updateSummary(actorName, oldExpense, req, oldSplits, shares)
+	if err := h.recordHistory(tx, expenseID, userID, "update", summary); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update history"})
+		return
+	}
+
 	if err := tx.Commit(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update expense"})
 		return
@@ -296,6 +334,73 @@ func (h *ExpenseHandler) Update(c *gin.Context) {
 	h.DB.Select(&splits, "SELECT * FROM expense_splits WHERE expense_id = $1", expenseID)
 
 	c.JSON(http.StatusOK, gin.H{"expense": expense, "splits": splits})
+}
+
+func (h *ExpenseHandler) Comment(c *gin.Context) {
+	userID := c.GetInt("userID")
+	groupID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid group ID"})
+		return
+	}
+	expenseID, err := strconv.Atoi(c.Param("eid"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid expense ID"})
+		return
+	}
+
+	if !h.isMember(groupID, userID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not a member of this group"})
+		return
+	}
+	if !h.expenseInGroup(expenseID, groupID) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Expense not found"})
+		return
+	}
+
+	var req commentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	req.Body = strings.TrimSpace(req.Body)
+	if req.Body == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Comment cannot be empty"})
+		return
+	}
+
+	tx, err := h.DB.Beginx()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add comment: " + err.Error()})
+		return
+	}
+	defer tx.Rollback()
+
+	var comment models.ExpenseComment
+	err = tx.Get(&comment,
+		`INSERT INTO expense_comments (expense_id, user_id, body)
+		 VALUES ($1, $2, $3)
+		 RETURNING id, expense_id, user_id, ''::text AS user_name, body, created_at`,
+		expenseID, userID, req.Body,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert comment: " + err.Error()})
+		return
+	}
+
+	actorName := h.userName(userID)
+	if err := h.recordHistory(tx, expenseID, userID, "comment", fmt.Sprintf("%s commented", actorName)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add history: " + err.Error()})
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit comment: " + err.Error()})
+		return
+	}
+
+	comment.UserName = actorName
+	c.JSON(http.StatusCreated, comment)
 }
 
 func (h *ExpenseHandler) Delete(c *gin.Context) {
@@ -334,6 +439,103 @@ func (h *ExpenseHandler) isMember(groupID, userID int) bool {
 	var count int
 	h.DB.Get(&count, "SELECT COUNT(*) FROM group_members WHERE group_id = $1 AND user_id = $2", groupID, userID)
 	return count > 0
+}
+
+func (h *ExpenseHandler) expenseInGroup(expenseID, groupID int) bool {
+	var count int
+	h.DB.Get(&count, "SELECT COUNT(*) FROM expenses WHERE id = $1 AND group_id = $2", expenseID, groupID)
+	return count > 0
+}
+
+func (h *ExpenseHandler) userName(userID int) string {
+	var name string
+	if err := h.DB.Get(&name, "SELECT name FROM users WHERE id = $1", userID); err != nil || strings.TrimSpace(name) == "" {
+		return "Someone"
+	}
+	return name
+}
+
+func (h *ExpenseHandler) getExpenseComments(expenseID int) []models.ExpenseComment {
+	var comments []models.ExpenseComment
+	h.DB.Select(&comments,
+		`SELECT ec.id, ec.expense_id, ec.user_id, u.name AS user_name, ec.body, ec.created_at
+		 FROM expense_comments ec
+		 JOIN users u ON u.id = ec.user_id
+		 WHERE ec.expense_id = $1
+		 ORDER BY ec.created_at ASC, ec.id ASC`,
+		expenseID,
+	)
+	if comments == nil {
+		return []models.ExpenseComment{}
+	}
+	return comments
+}
+
+func (h *ExpenseHandler) getExpenseHistory(expenseID int) []models.ExpenseHistory {
+	var history []models.ExpenseHistory
+	h.DB.Select(&history,
+		`SELECT eh.id, eh.expense_id, eh.user_id, u.name AS user_name, eh.action, eh.summary, eh.created_at
+		 FROM expense_history eh
+		 JOIN users u ON u.id = eh.user_id
+		 WHERE eh.expense_id = $1
+		 ORDER BY eh.created_at DESC, eh.id DESC`,
+		expenseID,
+	)
+	if history == nil {
+		return []models.ExpenseHistory{}
+	}
+	return history
+}
+
+func (h *ExpenseHandler) recordHistory(tx *sqlx.Tx, expenseID, userID int, action, summary string) error {
+	_, err := tx.Exec(
+		"INSERT INTO expense_history (expense_id, user_id, action, summary) VALUES ($1, $2, $3, $4)",
+		expenseID, userID, action, summary,
+	)
+	return err
+}
+
+func (h *ExpenseHandler) updateSummary(actorName string, oldExpense models.Expense, req createExpenseRequest, oldSplits []models.ExpenseSplit, newSplits []splitEntry) string {
+	var changes []string
+	if math.Round(oldExpense.Amount*100)/100 != math.Round(req.Amount*100)/100 {
+		changes = append(changes, fmt.Sprintf("amount from %.2f to %.2f", oldExpense.Amount, req.Amount))
+	}
+	if oldExpense.Description != req.Description {
+		changes = append(changes, "description")
+	}
+	if oldExpense.Category != req.Category {
+		changes = append(changes, fmt.Sprintf("category from %s to %s", oldExpense.Category, req.Category))
+	}
+	if oldExpense.Date != req.Date {
+		changes = append(changes, fmt.Sprintf("date from %s to %s", oldExpense.Date, req.Date))
+	}
+	if oldExpense.PaidBy != req.PaidBy {
+		changes = append(changes, fmt.Sprintf("paid by from %s to %s", h.userName(oldExpense.PaidBy), h.userName(req.PaidBy)))
+	}
+	if splitsChanged(oldSplits, newSplits) {
+		changes = append(changes, "splits")
+	}
+	if len(changes) == 0 {
+		return fmt.Sprintf("%s updated this expense", actorName)
+	}
+	return fmt.Sprintf("%s changed %s", actorName, strings.Join(changes, "; "))
+}
+
+func splitsChanged(oldSplits []models.ExpenseSplit, newSplits []splitEntry) bool {
+	if len(oldSplits) != len(newSplits) {
+		return true
+	}
+	oldByUser := map[int]float64{}
+	for _, s := range oldSplits {
+		oldByUser[s.UserID] = math.Round(s.ShareAmount*100) / 100
+	}
+	for _, s := range newSplits {
+		oldAmount, ok := oldByUser[s.UserID]
+		if !ok || oldAmount != math.Round(s.ShareAmount*100)/100 {
+			return true
+		}
+	}
+	return false
 }
 
 func calculateShares(amount float64, splitType string, entries []splitEntry) ([]splitEntry, error) {
@@ -388,7 +590,28 @@ func calculateShares(amount float64, splitType string, entries []splitEntry) ([]
 		}
 		return result, nil
 
+	case "shares":
+		var totalShares float64
+		for _, e := range entries {
+			if e.Shares <= 0 {
+				return nil, fmt.Errorf("shares must be positive")
+			}
+			totalShares += e.Shares
+		}
+		result := make([]splitEntry, len(entries))
+		var assigned float64
+		for i, e := range entries {
+			share := math.Round((amount*e.Shares/totalShares)*100) / 100
+			result[i] = splitEntry{UserID: e.UserID, ShareAmount: share}
+			assigned += share
+		}
+		diff := math.Round((amount-assigned)*100) / 100
+		if diff != 0 {
+			result[0].ShareAmount = math.Round((result[0].ShareAmount+diff)*100) / 100
+		}
+		return result, nil
+
 	default:
-		return nil, fmt.Errorf("invalid split_type: %s (use equal, exact, or percentage)", splitType)
+		return nil, fmt.Errorf("invalid split_type: %s (use equal, exact, percentage, or shares)", splitType)
 	}
 }

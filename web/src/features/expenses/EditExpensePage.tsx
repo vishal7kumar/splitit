@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getGroup, type GroupMember } from "../../api/groups";
@@ -8,7 +8,22 @@ import {
   type SplitEntry,
   type ExpenseSplit,
 } from "../../api/expenses";
-import { useAuth } from "../auth/useAuth";
+
+type SplitType = "equal" | "exact" | "percentage" | "shares";
+
+const splitTypeLabels: Record<SplitType, string> = {
+  equal: "Equally",
+  exact: "Unequally",
+  percentage: "Percentage",
+  shares: "Shares",
+};
+
+const currencySymbols: Record<string, string> = {
+  INR: "₹",
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+};
 
 export default function EditExpensePage() {
   const { id, eid } = useParams<{ id: string; eid: string }>();
@@ -16,19 +31,17 @@ export default function EditExpensePage() {
   const expenseId = Number(eid);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
 
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("general");
   const [date, setDate] = useState("");
   const [paidBy, setPaidBy] = useState<number>(0);
-  const [splitType, setSplitType] = useState<"equal" | "exact" | "percentage">(
-    "equal"
-  );
+  const [splitType, setSplitType] = useState<SplitType>("equal");
   const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
   const [exactAmounts, setExactAmounts] = useState<Record<number, string>>({});
   const [percentages, setPercentages] = useState<Record<number, string>>({});
+  const [shares, setShares] = useState<Record<number, string>>({});
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
 
@@ -112,10 +125,15 @@ export default function EditExpensePage() {
         user_id: uid,
         share_amount: parseFloat(exactAmounts[uid] || "0"),
       }));
-    } else {
+    } else if (splitType === "percentage") {
       splits = selectedMembers.map((uid) => ({
         user_id: uid,
         percentage: parseFloat(percentages[uid] || "0"),
+      }));
+    } else {
+      splits = selectedMembers.map((uid) => ({
+        user_id: uid,
+        shares: parseFloat(shares[uid] || "0"),
       }));
     }
 
@@ -128,10 +146,19 @@ export default function EditExpensePage() {
     );
   }
 
+  function toggleAllMembers() {
+    if (!groupData) return;
+    const memberIds = groupData.members.map((m: GroupMember) => m.user_id);
+    setSelectedMembers((prev) =>
+      prev.length === memberIds.length ? [] : memberIds
+    );
+  }
+
   if (!groupData || !expenseData)
     return <p className="text-gray-500">Loading...</p>;
 
   const { members } = groupData;
+  const currencySymbol = currencySymbols[groupData.group.currency] || "₹";
 
   return (
     <div className="max-w-lg mx-auto">
@@ -192,7 +219,7 @@ export default function EditExpensePage() {
             Split type
           </label>
           <div className="flex gap-2 mt-1">
-            {(["equal", "exact", "percentage"] as const).map((t) => (
+            {(["equal", "exact", "percentage", "shares"] as const).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -203,16 +230,27 @@ export default function EditExpensePage() {
                     : "bg-gray-100 text-gray-700"
                 }`}
               >
-                {t.charAt(0).toUpperCase() + t.slice(1)}
+                {splitTypeLabels[t]}
               </button>
             ))}
           </div>
         </div>
 
         <div>
-          <label className="text-sm font-medium text-gray-700">
-            Split among
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-gray-700">
+              Split among
+            </label>
+            <button
+              type="button"
+              onClick={toggleAllMembers}
+              className="text-sm text-blue-600 hover:text-blue-700"
+            >
+              {selectedMembers.length === members.length
+                ? "Unselect all"
+                : "Select all"}
+            </button>
+          </div>
           <div className="space-y-2 mt-1">
             {members.map((m: GroupMember) => (
               <div key={m.user_id} className="flex items-center gap-2">
@@ -223,27 +261,32 @@ export default function EditExpensePage() {
                 />
                 <span className="flex-1">{m.name}</span>
                 {splitType === "exact" && selectedMembers.includes(m.user_id) && (
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="Amount"
-                    value={exactAmounts[m.user_id] || ""}
-                    onChange={(e) =>
-                      setExactAmounts((p) => ({
-                        ...p,
-                        [m.user_id]: e.target.value,
-                      }))
-                    }
-                    className="w-24 border rounded px-2 py-1 text-sm"
-                  />
+                  <div className="flex w-28 items-center rounded border bg-white text-sm">
+                    <span className="pl-2 text-gray-500">
+                      {currencySymbol}
+                    </span>
+                    <input
+                      type="number"
+                      step="1"
+                      placeholder="Amount"
+                      value={exactAmounts[m.user_id] || ""}
+                      onChange={(e) =>
+                        setExactAmounts((p) => ({
+                          ...p,
+                          [m.user_id]: e.target.value,
+                        }))
+                      }
+                      className="min-w-0 flex-1 px-1 py-1 outline-none"
+                    />
+                  </div>
                 )}
                 {splitType === "percentage" &&
                   selectedMembers.includes(m.user_id) && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex w-24 items-center rounded border bg-white text-sm">
                       <input
                         type="number"
                         step="0.1"
-                        placeholder="%"
+                        placeholder="0"
                         value={percentages[m.user_id] || ""}
                         onChange={(e) =>
                           setPercentages((p) => ({
@@ -251,9 +294,28 @@ export default function EditExpensePage() {
                             [m.user_id]: e.target.value,
                           }))
                         }
-                        className="w-20 border rounded px-2 py-1 text-sm"
+                        className="min-w-0 flex-1 px-2 py-1 outline-none"
                       />
-                      <span className="text-sm text-gray-500">%</span>
+                      <span className="pr-2 text-gray-500">%</span>
+                    </div>
+                  )}
+                {splitType === "shares" &&
+                  selectedMembers.includes(m.user_id) && (
+                    <div className="flex w-32 items-center rounded border bg-white text-sm">
+                      <input
+                        type="number"
+                        step="0.1"
+                        placeholder="1"
+                        value={shares[m.user_id] || ""}
+                        onChange={(e) =>
+                          setShares((p) => ({
+                            ...p,
+                            [m.user_id]: e.target.value,
+                          }))
+                        }
+                        className="min-w-0 flex-1 px-2 py-1 outline-none"
+                      />
+                      <span className="pr-2 text-gray-500">share(s)</span>
                     </div>
                   )}
               </div>

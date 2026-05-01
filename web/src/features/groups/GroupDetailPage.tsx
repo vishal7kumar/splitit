@@ -1,4 +1,4 @@
-import { useState, FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getGroup, addMember, removeMember, deleteGroup, updateGroup } from "../../api/groups";
@@ -179,7 +179,15 @@ export default function GroupDetailPage() {
             {expenses.map((exp: Expense) => (
               <li
                 key={exp.id}
-                className="flex items-center justify-between border rounded p-3"
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/groups/${groupId}/expenses/${exp.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    navigate(`/groups/${groupId}/expenses/${exp.id}`);
+                  }
+                }}
+                className="flex items-center justify-between border rounded p-3 cursor-pointer hover:bg-gray-50"
               >
                 <div>
                   <span className="font-medium">
@@ -196,12 +204,14 @@ export default function GroupDetailPage() {
                 <div className="flex gap-2">
                   <Link
                     to={`/groups/${groupId}/expenses/${exp.id}/edit`}
+                    onClick={(e) => e.stopPropagation()}
                     className="text-sm text-blue-600 hover:text-blue-800"
                   >
                     Edit
                   </Link>
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (confirm("Delete this expense?"))
                         delExpense.mutate(exp.id);
                     }}

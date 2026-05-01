@@ -9,6 +9,7 @@ import GroupListPage from "../features/groups/GroupListPage";
 import GroupDetailPage from "../features/groups/GroupDetailPage";
 import AddExpensePage from "../features/expenses/AddExpensePage";
 import EditExpensePage from "../features/expenses/EditExpensePage";
+import ExpenseDetailPage from "../features/expenses/ExpenseDetailPage";
 
 function ProtectedLayout() {
   const { user, isLoading } = useAuth();
@@ -41,6 +42,7 @@ export function AppRouter() {
           <Route path="/groups" element={<GroupListPage />} />
           <Route path="/groups/:id" element={<GroupDetailPage />} />
           <Route path="/groups/:id/add" element={<AddExpensePage />} />
+          <Route path="/groups/:id/expenses/:eid" element={<ExpenseDetailPage />} />
           <Route path="/groups/:id/expenses/:eid/edit" element={<EditExpensePage />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
