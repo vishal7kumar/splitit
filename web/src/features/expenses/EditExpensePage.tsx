@@ -8,6 +8,8 @@ import {
   type SplitEntry,
   type ExpenseSplit,
 } from "../../api/expenses";
+import { useAuth } from "../auth/useAuth";
+import { currencySymbols } from "../../lib/currency";
 
 type SplitType = "equal" | "exact" | "percentage" | "shares";
 
@@ -18,12 +20,7 @@ const splitTypeLabels: Record<SplitType, string> = {
   shares: "Shares",
 };
 
-const currencySymbols: Record<string, string> = {
-  INR: "₹",
-  USD: "$",
-  EUR: "€",
-  GBP: "£",
-};
+
 
 export default function EditExpensePage() {
   const { id, eid } = useParams<{ id: string; eid: string }>();
@@ -31,6 +28,7 @@ export default function EditExpensePage() {
   const expenseId = Number(eid);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -182,20 +180,20 @@ export default function EditExpensePage() {
           onChange={(e) => setDescription(e.target.value)}
           className="w-full border rounded px-3 py-2"
         />
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             type="text"
             placeholder="Category"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="flex-1 border rounded px-3 py-2"
+            className="min-w-0 flex-1 border rounded px-3 py-2"
           />
           <input
             type="date"
             value={date}
             max={new Date().toISOString().split("T")[0]}
             onChange={(e) => setDate(e.target.value)}
-            className="flex-1 border rounded px-3 py-2"
+            className="min-w-0 flex-1 border rounded px-3 py-2"
           />
         </div>
 
@@ -208,7 +206,7 @@ export default function EditExpensePage() {
           >
             {members.map((m: GroupMember) => (
               <option key={m.user_id} value={m.user_id}>
-                {m.name}
+                {m.user_id === user?.id ? "You" : m.name}
               </option>
             ))}
           </select>
@@ -218,7 +216,7 @@ export default function EditExpensePage() {
           <label className="text-sm font-medium text-gray-700">
             Split type
           </label>
-          <div className="flex gap-2 mt-1">
+          <div className="flex flex-wrap gap-2 mt-1">
             {(["equal", "exact", "percentage", "shares"] as const).map((t) => (
               <button
                 key={t}
@@ -259,7 +257,7 @@ export default function EditExpensePage() {
                   checked={selectedMembers.includes(m.user_id)}
                   onChange={() => toggleMember(m.user_id)}
                 />
-                <span className="flex-1">{m.name}</span>
+                <span className="min-w-0 flex-1 break-words">{m.user_id === user?.id ? "You" : m.name}</span>
                 {splitType === "exact" && selectedMembers.includes(m.user_id) && (
                   <div className="flex w-28 items-center rounded border bg-white text-sm">
                     <span className="pl-2 text-gray-500">
@@ -323,12 +321,13 @@ export default function EditExpensePage() {
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <button
             type="submit"
-            className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+            disabled={update.isPending}
+            className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
           >
-            Save Changes
+            {update.isPending ? "Saving..." : "Save Changes"}
           </button>
           <button
             type="button"

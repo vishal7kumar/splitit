@@ -42,6 +42,22 @@ func (h *MemberHandler) Add(c *gin.Context) {
 		return
 	}
 
+	// Check if the user is already in another group with the same name
+	var groupName string
+	err = h.DB.Get(&groupName, "SELECT name FROM groups WHERE id = $1", groupID)
+	if err == nil {
+		var count int
+		err = h.DB.Get(&count, `
+			SELECT COUNT(*) FROM groups g
+			JOIN group_members gm ON g.id = gm.group_id
+			WHERE g.name = $1 AND gm.user_id = $2 AND g.id != $3
+		`, groupName, targetUserID, groupID)
+		if err == nil && count > 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "User is already a member of another group with this name"})
+			return
+		}
+	}
+
 	_, err = h.DB.Exec(
 		"INSERT INTO group_members (group_id, user_id, role) VALUES ($1, $2, 'member') ON CONFLICT DO NOTHING",
 		groupID, targetUserID,

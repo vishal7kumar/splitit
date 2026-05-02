@@ -14,12 +14,18 @@ export default function GroupListPage() {
     queryFn: listGroups,
   });
 
+  const [error, setError] = useState("");
+
   const create = useMutation({
     mutationFn: ({ name, currency }: { name: string; currency: string }) =>
       createGroup(name, currency),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       setName("");
+      setError("");
+    },
+    onError: (err: Error & { response?: { data?: { error?: string } } }) => {
+      setError(err.response?.data?.error || "Failed to create group");
     },
   });
 
@@ -32,19 +38,20 @@ export default function GroupListPage() {
     <div className="max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Groups</h1>
 
-      <form onSubmit={handleCreate} className="flex gap-2 mb-6">
+      {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
+      <form onSubmit={handleCreate} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 mb-6 sm:flex">
         <input
           type="text"
           placeholder="New group name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="flex-1 border rounded px-3 py-2"
+          className="col-span-2 min-w-0 border rounded px-3 py-2 sm:col-span-1 sm:flex-1"
           required
         />
         <select
           value={currency}
           onChange={(e) => setCurrency(e.target.value)}
-          className="border rounded px-2 py-2"
+          className="min-w-0 border rounded px-2 py-2"
         >
           <option value="INR">INR</option>
           <option value="USD">USD</option>
@@ -53,9 +60,10 @@ export default function GroupListPage() {
         </select>
         <button
           type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          disabled={create.isPending}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
         >
-          Create
+          {create.isPending ? "Creating..." : "Create"}
         </button>
       </form>
 
@@ -69,9 +77,9 @@ export default function GroupListPage() {
             <li key={g.id}>
               <Link
                 to={`/groups/${g.id}`}
-                className="block border rounded p-4 hover:bg-gray-50"
+                className="block min-w-0 border rounded p-4 hover:bg-gray-50"
               >
-                <span className="font-medium">{g.name}</span>
+                <span className="font-medium break-words">{g.name}</span>
                 <span className="text-xs bg-gray-100 text-gray-600 rounded px-1.5 py-0.5 ml-2">
                   {g.currency}
                 </span>

@@ -51,12 +51,14 @@ export function getTotalBalance(): Promise<TotalBalance> {
 
 export function createSettlement(
   groupId: number,
+  paidBy: number,
   paidTo: number,
   amount: number,
   date?: string
 ): Promise<Settlement> {
   return api
     .post(`/api/groups/${groupId}/settlements`, {
+      paid_by: paidBy,
       paid_to: paidTo,
       amount,
       date,

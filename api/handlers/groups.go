@@ -27,6 +27,18 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// Check if the user is already in a group with the same name
+	var count int
+	err := h.DB.Get(&count, `
+		SELECT COUNT(*) FROM groups g
+		JOIN group_members gm ON g.id = gm.group_id
+		WHERE g.name = $1 AND gm.user_id = $2
+	`, req.Name, userID)
+	if err == nil && count > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "You are already a member of a group with this name"})
+		return
+	}
+
 	tx, err := h.DB.Beginx()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create group"})
@@ -138,6 +150,20 @@ func (h *GroupHandler) Update(c *gin.Context) {
 	var req updateGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Name is required"})
+		return
+	}
+
+	// Check if any member of this group is already in another group with the new name
+	var conflictingUsers int
+	err = h.DB.Get(&conflictingUsers, `
+		SELECT COUNT(DISTINCT gm1.user_id)
+		FROM group_members gm1
+		JOIN group_members gm2 ON gm1.user_id = gm2.user_id
+		JOIN groups g2 ON gm2.group_id = g2.id
+		WHERE gm1.group_id = $1 AND g2.id != $1 AND g2.name = $2
+	`, groupID, req.Name)
+	if err == nil && conflictingUsers > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "One or more members are already in another group with this name"})
 		return
 	}
 

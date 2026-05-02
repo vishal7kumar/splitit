@@ -9,6 +9,8 @@ import {
   type ExpenseSplit,
 } from "../../api/expenses";
 import { formatDate } from "../../lib/formatDate";
+import { useAuth } from "../auth/useAuth";
+import { formatCurrency } from "../../lib/currency";
 
 export default function ExpenseDetailPage() {
   const { id, eid } = useParams<{ id: string; eid: string }>();
@@ -16,6 +18,7 @@ export default function ExpenseDetailPage() {
   const expenseId = Number(eid);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [comment, setComment] = useState("");
   const [error, setError] = useState("");
 
@@ -68,7 +71,7 @@ export default function ExpenseDetailPage() {
   const memberMap = Object.fromEntries(
     members.map((m: GroupMember) => [m.user_id, m])
   );
-  const payerName = memberMap[expense.paid_by]?.name || "Unknown";
+  const payerName = expense.paid_by === user?.id ? "You" : (memberMap[expense.paid_by]?.name || "Unknown");
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -87,7 +90,7 @@ export default function ExpenseDetailPage() {
             <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
               <span>{expense.category}</span>
               <span>&middot;</span>
-              <span>{group.currency} {expense.amount.toFixed(2)}</span>
+              <span>{formatCurrency(group.currency, expense.amount)}</span>
             </div>
           </div>
           <div className="flex gap-2">
@@ -99,12 +102,13 @@ export default function ExpenseDetailPage() {
             </Link>
             <button
               type="button"
+              disabled={delExpense.isPending}
               onClick={() => {
                 if (confirm("Delete this expense?")) delExpense.mutate();
               }}
-              className="text-sm border border-red-200 text-red-600 px-3 py-2 rounded hover:bg-red-50"
+              className="text-sm border border-red-200 text-red-600 px-3 py-2 rounded hover:bg-red-50 disabled:opacity-50"
             >
-              Delete
+              {delExpense.isPending ? "Deleting..." : "Delete"}
             </button>
           </div>
         </div>
@@ -140,9 +144,9 @@ export default function ExpenseDetailPage() {
               key={split.id}
               className="flex items-center justify-between border rounded p-3 text-sm"
             >
-              <span>{memberMap[split.user_id]?.name || "Unknown"}</span>
+              <span>{split.user_id === user?.id ? "You" : (memberMap[split.user_id]?.name || "Unknown")}</span>
               <span className="font-medium">
-                {group.currency} {split.share_amount.toFixed(2)}
+                {formatCurrency(group.currency, split.share_amount)}
               </span>
             </li>
           ))}
@@ -182,7 +186,7 @@ export default function ExpenseDetailPage() {
             disabled={addComment.isPending}
             className="mt-2 bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-60"
           >
-            Add comment
+            {addComment.isPending ? "Adding..." : "Add comment"}
           </button>
         </form>
 

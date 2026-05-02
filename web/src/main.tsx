@@ -13,7 +13,7 @@ createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AppRouter />
-        <Analytics />
+        {import.meta.env.PROD && <Analytics />}
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>

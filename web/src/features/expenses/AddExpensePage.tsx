@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { getGroup, type GroupMember } from "../../api/groups";
 import { createExpense, type SplitEntry } from "../../api/expenses";
 import { useAuth } from "../auth/useAuth";
+import { currencySymbols } from "../../lib/currency";
 
 type SplitType = "equal" | "exact" | "percentage" | "shares";
 
@@ -14,12 +15,7 @@ const splitTypeLabels: Record<SplitType, string> = {
   shares: "Shares",
 };
 
-const currencySymbols: Record<string, string> = {
-  INR: "₹",
-  USD: "$",
-  EUR: "€",
-  GBP: "£",
-};
+
 
 export default function AddExpensePage() {
   const { id } = useParams<{ id: string }>();
@@ -150,20 +146,20 @@ export default function AddExpensePage() {
           onChange={(e) => setDescription(e.target.value)}
           className="w-full border rounded px-3 py-2"
         />
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             type="text"
             placeholder="Category"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="flex-1 border rounded px-3 py-2"
+            className="min-w-0 flex-1 border rounded px-3 py-2"
           />
           <input
             type="date"
             value={date}
             max={new Date().toISOString().split("T")[0]}
             onChange={(e) => setDate(e.target.value)}
-            className="flex-1 border rounded px-3 py-2"
+            className="min-w-0 flex-1 border rounded px-3 py-2"
           />
         </div>
 
@@ -176,7 +172,7 @@ export default function AddExpensePage() {
           >
             {members.map((m) => (
               <option key={m.user_id} value={m.user_id}>
-                {m.name}
+                {m.user_id === user?.id ? "You" : m.name}
               </option>
             ))}
           </select>
@@ -186,7 +182,7 @@ export default function AddExpensePage() {
           <label className="text-sm font-medium text-gray-700">
             Split type
           </label>
-          <div className="flex gap-2 mt-1">
+          <div className="flex flex-wrap gap-2 mt-1">
             {(["equal", "exact", "percentage", "shares"] as const).map((t) => (
               <button
                 key={t}
@@ -227,7 +223,7 @@ export default function AddExpensePage() {
                   checked={selectedMembers.includes(m.user_id)}
                   onChange={() => toggleMember(m.user_id)}
                 />
-                <span className="flex-1">{m.name}</span>
+                <span className="min-w-0 flex-1 break-words">{m.user_id === user?.id ? "You" : m.name}</span>
                 {splitType === "exact" && selectedMembers.includes(m.user_id) && (
                   <div className="flex w-28 items-center rounded border bg-white text-sm">
                     <span className="pl-2 text-gray-500">
@@ -293,9 +289,10 @@ export default function AddExpensePage() {
 
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+          disabled={create.isPending}
+          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
         >
-          Add Expense
+          {create.isPending ? "Adding..." : "Add Expense"}
         </button>
       </form>
     </div>

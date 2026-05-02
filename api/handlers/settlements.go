@@ -16,6 +16,7 @@ type SettlementHandler struct {
 }
 
 type createSettlementRequest struct {
+	PaidBy int     `json:"paid_by"`
 	PaidTo int     `json:"paid_to" binding:"required"`
 	Amount float64 `json:"amount" binding:"required"`
 	Date   string  `json:"date"`
@@ -54,6 +55,26 @@ func (h *SettlementHandler) Create(c *gin.Context) {
 		}
 	}
 
+	paidBy := userID
+	if req.PaidBy != 0 {
+		paidBy = req.PaidBy
+	}
+
+	if paidBy == req.PaidTo {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Payer and payee cannot be the same"})
+		return
+	}
+
+	if paidBy != userID && req.PaidTo != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only record payments involving yourself"})
+		return
+	}
+
+	if !h.isMember(groupID, paidBy) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Payer is not a member of this group"})
+		return
+	}
+
 	if !h.isMember(groupID, req.PaidTo) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Recipient is not a member of this group"})
 		return
@@ -62,7 +83,7 @@ func (h *SettlementHandler) Create(c *gin.Context) {
 	var settlement models.Settlement
 	query := "INSERT INTO settlements (group_id, paid_by, paid_to, amount"
 	values := "VALUES ($1, $2, $3, $4"
-	args := []interface{}{groupID, userID, req.PaidTo, req.Amount}
+	args := []interface{}{groupID, paidBy, req.PaidTo, req.Amount}
 
 	if req.Date != "" {
 		query += ", date"

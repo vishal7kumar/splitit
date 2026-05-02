@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../auth/useAuth";
 import { getTotalBalance } from "../../api/settlements";
+import { formatCurrency } from "../../lib/currency";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -28,7 +29,7 @@ export default function DashboardPage() {
               }`}
             >
               {data.total_balance >= 0 ? "+" : ""}
-              {data.total_balance.toFixed(2)}
+              {formatCurrency(data.groups[0]?.currency || "INR", data.total_balance)}
             </p>
             <p className="text-xs text-gray-400 mt-1">
               {data.total_balance > 0
@@ -60,8 +61,8 @@ export default function DashboardPage() {
                           g.balance >= 0 ? "text-green-600" : "text-red-600"
                         }`}
                       >
-                        {g.balance >= 0 ? "+" : ""}
-                        {g.currency} {g.balance.toFixed(2)}
+                        {g.balance > 0 ? "+" : ""}
+                        {formatCurrency(g.currency, g.balance)}
                       </span>
                     </Link>
                   </li>

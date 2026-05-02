@@ -10,6 +10,7 @@ import {
 } from "../../api/settlements";
 import { useAuth } from "../auth/useAuth";
 import { formatDate } from "../../lib/formatDate";
+import { formatCurrency } from "../../lib/currency";
 
 export default function GroupDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -21,7 +22,8 @@ export default function GroupDetailPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [settleTo, setSettleTo] = useState<number>(0);
+  const [settleDirection, setSettleDirection] = useState<"paid" | "received">("paid");
+  const [settleOtherId, setSettleOtherId] = useState<number>(0);
   const [settleAmount, setSettleAmount] = useState("");
   const [settlePrompt, setSettlePrompt] = useState<{ to: number; amount: number } | null>(null);
   const [customSettleAmount, setCustomSettleAmount] = useState("");
@@ -51,12 +53,12 @@ export default function GroupDetailPage() {
   });
 
   const settle = useMutation({
-    mutationFn: ({ paidTo, amount }: { paidTo: number; amount: number }) =>
-      createSettlement(groupId, paidTo, amount),
+    mutationFn: ({ paidBy, paidTo, amount }: { paidBy: number; paidTo: number; amount: number }) =>
+      createSettlement(groupId, paidBy, paidTo, amount),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["balances", groupId] });
       queryClient.invalidateQueries({ queryKey: ["settlements", groupId] });
-      setSettleTo(0);
+      setSettleOtherId(0);
       setSettleAmount("");
     },
   });
@@ -111,9 +113,9 @@ export default function GroupDetailPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">{group.name}</h1>
+      <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="break-words text-2xl font-bold">{group.name}</h1>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-sm text-gray-500">Currency:</span>
             {isAdmin ? (
@@ -132,7 +134,7 @@ export default function GroupDetailPage() {
             )}
           </div>
         </div>
-        <div className="flex gap-3 items-start">
+        <div className="flex flex-wrap gap-3 items-center sm:items-start sm:justify-end">
           <Link
             to={`/groups/${groupId}/add`}
             className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
@@ -141,12 +143,13 @@ export default function GroupDetailPage() {
           </Link>
           {isAdmin && (
             <button
+              disabled={del.isPending}
               onClick={() => {
                 if (confirm("Delete this group?")) del.mutate();
               }}
-              className="text-sm text-red-600 hover:text-red-800"
+              className="text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
             >
-              Delete group
+              {del.isPending ? "Deleting..." : "Delete group"}
             </button>
           )}
         </div>
@@ -155,20 +158,20 @@ export default function GroupDetailPage() {
       {/* Expenses */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold mb-3">Expenses</h2>
-        <div className="flex gap-2 mb-4">
+        <div className="flex flex-col gap-2 mb-4 sm:flex-row">
           <input
             type="text"
             placeholder="Search expenses..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 border rounded px-3 py-2 text-sm"
+            className="min-w-0 flex-1 border rounded px-3 py-2 text-sm"
           />
           <input
             type="text"
             placeholder="Category"
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="w-32 border rounded px-3 py-2 text-sm"
+            className="w-full min-w-0 border rounded px-3 py-2 text-sm sm:w-32"
           />
         </div>
 
@@ -187,21 +190,21 @@ export default function GroupDetailPage() {
                     navigate(`/groups/${groupId}/expenses/${exp.id}`);
                   }
                 }}
-                className="flex items-center justify-between border rounded p-3 cursor-pointer hover:bg-gray-50"
+                className="flex flex-col gap-2 border rounded p-3 cursor-pointer hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div>
-                  <span className="font-medium">
+                <div className="min-w-0">
+                  <span className="font-medium break-words">
                     {exp.description || "Untitled"}
                   </span>
                   <span className="text-gray-400 text-sm ml-2">
                     {exp.category}
                   </span>
-                  <div className="text-sm text-gray-500">
-                    {memberMap[exp.paid_by]?.name || "Unknown"} paid{" "}
-                    {group.currency} {exp.amount.toFixed(2)} &middot; {formatDate(exp.date)}
+                  <div className="break-words text-sm text-gray-500">
+                    {exp.paid_by === user?.id ? "You" : (memberMap[exp.paid_by]?.name || "Unknown")} paid{" "}
+                    {formatCurrency(group.currency, exp.amount)} &middot; {formatDate(exp.date)}
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex shrink-0 gap-2">
                   <Link
                     to={`/groups/${groupId}/expenses/${exp.id}/edit`}
                     onClick={(e) => e.stopPropagation()}
@@ -210,12 +213,13 @@ export default function GroupDetailPage() {
                     Edit
                   </Link>
                   <button
+                    disabled={delExpense.isPending}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (confirm("Delete this expense?"))
                         delExpense.mutate(exp.id);
                     }}
-                    className="text-sm text-red-500 hover:text-red-700"
+                    className="text-sm text-red-500 hover:text-red-700 disabled:opacity-50"
                   >
                     Delete
                   </button>
@@ -232,10 +236,10 @@ export default function GroupDetailPage() {
           <h2 className="text-lg font-semibold mb-3">Balances</h2>
           <ul className="space-y-1 mb-4">
             {balanceData.balances.map((b) => (
-              <li key={b.user_id} className="flex justify-between text-sm border rounded p-2">
-                <span>{b.name}</span>
+              <li key={b.user_id} className="flex justify-between gap-3 text-sm border rounded p-2">
+                <span className="min-w-0 break-words">{b.user_id === user?.id ? "You" : b.name}</span>
                 <span className={b.balance >= 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                  {b.balance >= 0 ? "+" : ""}{group.currency} {b.balance.toFixed(2)}
+                  {b.balance > 0 ? "+" : ""}{formatCurrency(group.currency, b.balance)}
                 </span>
               </li>
             ))}
@@ -246,47 +250,49 @@ export default function GroupDetailPage() {
               <h3 className="text-sm font-medium text-gray-700 mb-2">Simplified debts</h3>
               <ul className="space-y-1 mb-4">
                 {balanceData.debts.map((d, i) => (
-                  <li key={i} className="flex items-center justify-between text-sm border rounded p-2">
-                    <span>
-                      <span className="font-medium">{d.from_name}</span>
-                      {" owes "}
-                      <span className="font-medium">{d.to_name}</span>
-                      {" "}{group.currency} {d.amount.toFixed(2)}
+                  <li key={i} className="flex flex-col gap-2 text-sm border rounded p-2 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="min-w-0 break-words">
+                      <span className="font-medium">{d.from === user?.id ? "You" : d.from_name}</span>
+                      {d.from === user?.id ? " owe " : " owes "}
+                      <span className="font-medium">{d.to === user?.id ? "You" : d.to_name}</span>
+                      {" "}{formatCurrency(group.currency, d.amount)}
                     </span>
                     {d.from === user?.id && (
                       settlePrompt?.to === d.to ? (
-                        <div className="flex items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-1">
                           <button
+                            disabled={settle.isPending}
                             onClick={() => {
-                              settle.mutate({ paidTo: d.to, amount: d.amount });
+                              settle.mutate({ paidBy: user!.id, paidTo: d.to, amount: d.amount });
                               setSettlePrompt(null);
                               setCustomSettleAmount("");
                             }}
-                            className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
+                            className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50"
                           >
-                            Full ({group.currency} {d.amount.toFixed(2)})
+                            {settle.isPending ? "Paying..." : `Full (${formatCurrency(group.currency, d.amount)})`}
                           </button>
-                          <div className="flex items-center gap-1">
+                          <div className="flex min-w-0 items-center gap-1">
                             <input
                               type="number"
                               step="0.01"
                               placeholder="Amount"
                               value={customSettleAmount}
                               onChange={(e) => setCustomSettleAmount(e.target.value)}
-                              className="w-20 border rounded px-1 py-0.5 text-xs"
+                              className="w-20 min-w-0 border rounded px-1 py-0.5 text-xs"
                             />
                             <button
+                              disabled={settle.isPending}
                               onClick={() => {
                                 const amt = parseFloat(customSettleAmount);
                                 if (amt > 0) {
-                                  settle.mutate({ paidTo: d.to, amount: amt });
+                                  settle.mutate({ paidBy: user!.id, paidTo: d.to, amount: amt });
                                   setSettlePrompt(null);
                                   setCustomSettleAmount("");
                                 }
                               }}
-                              className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+                              className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
                             >
-                              Pay
+                              {settle.isPending ? "..." : "Pay"}
                             </button>
                           </div>
                           <button
@@ -314,13 +320,21 @@ export default function GroupDetailPage() {
           {/* Manual settle */}
           <div className="border rounded p-3 bg-gray-50">
             <h3 className="text-sm font-medium text-gray-700 mb-2">Record a payment</h3>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-col sm:flex-row">
               <select
-                value={settleTo}
-                onChange={(e) => setSettleTo(Number(e.target.value))}
-                className="flex-1 border rounded px-2 py-1 text-sm"
+                value={settleDirection}
+                onChange={(e) => setSettleDirection(e.target.value as "paid" | "received")}
+                className="w-full sm:w-32 border rounded px-2 py-1 text-sm bg-white"
               >
-                <option value={0}>Pay to...</option>
+                <option value="paid">You paid</option>
+                <option value="received">You received from</option>
+              </select>
+              <select
+                value={settleOtherId}
+                onChange={(e) => setSettleOtherId(Number(e.target.value))}
+                className="min-w-0 flex-1 border rounded px-2 py-1 text-sm bg-white"
+              >
+                <option value={0}>Select member...</option>
                 {members
                   .filter((m) => m.user_id !== user?.id)
                   .map((m) => (
@@ -335,17 +349,23 @@ export default function GroupDetailPage() {
                 placeholder="Amount"
                 value={settleAmount}
                 onChange={(e) => setSettleAmount(e.target.value)}
-                className="w-28 border rounded px-2 py-1 text-sm"
+                className="w-full min-w-0 border rounded px-2 py-1 text-sm sm:w-28"
               />
               <button
+                disabled={settle.isPending}
                 onClick={() => {
-                  if (settleTo && settleAmount) {
-                    settle.mutate({ paidTo: settleTo, amount: parseFloat(settleAmount) });
+                  if (settleOtherId && settleAmount) {
+                    const amt = parseFloat(settleAmount);
+                    if (amt > 0) {
+                      const paidBy = settleDirection === "paid" ? user!.id : settleOtherId;
+                      const paidTo = settleDirection === "paid" ? settleOtherId : user!.id;
+                      settle.mutate({ paidBy, paidTo, amount: amt });
+                    }
                   }
                 }}
-                className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 disabled:opacity-50"
               >
-                Pay
+                {settle.isPending ? "Recording..." : "Record"}
               </button>
             </div>
           </div>
@@ -358,11 +378,11 @@ export default function GroupDetailPage() {
           <h2 className="text-lg font-semibold mb-3">Settlement History</h2>
           <ul className="space-y-1">
             {settlements.map((s) => (
-              <li key={s.id} className="text-sm border rounded p-2 text-gray-600">
-                <span className="font-medium">{s.paid_by_name}</span>
+              <li key={s.id} className="break-words text-sm border rounded p-2 text-gray-600">
+                <span className="font-medium">{s.paid_by === user?.id ? "You" : s.paid_by_name}</span>
                 {" paid "}
-                <span className="font-medium">{s.paid_to_name}</span>
-                {" "}{group.currency} {s.amount.toFixed(2)}
+                <span className="font-medium">{s.paid_to === user?.id ? "You" : s.paid_to_name}</span>
+                {" "}{formatCurrency(group.currency, s.amount)}
                 <span className="text-gray-400 ml-2">{formatDate(s.created_at)}</span>
               </li>
             ))}
@@ -376,20 +396,21 @@ export default function GroupDetailPage() {
           Members ({members.length})
         </h2>
 
-        <form onSubmit={handleAddMember} className="flex gap-2 mb-4">
+        <form onSubmit={handleAddMember} className="flex flex-col gap-2 mb-4 sm:flex-row">
           <input
             type="email"
             placeholder="Add member by email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="flex-1 border rounded px-3 py-2"
+            className="min-w-0 flex-1 border rounded px-3 py-2"
             required
           />
           <button
             type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            disabled={add.isPending}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
           >
-            Add
+            {add.isPending ? "Adding..." : "Add"}
           </button>
         </form>
         {error && <p className="text-red-600 text-sm mb-2">{error}</p>}
@@ -398,21 +419,22 @@ export default function GroupDetailPage() {
           {members.map((m) => (
             <li
               key={m.user_id}
-              className="flex items-center justify-between border rounded p-3"
+              className="flex items-start justify-between gap-3 border rounded p-3"
             >
-              <div>
-                <span className="font-medium">{m.name}</span>
-                <span className="text-gray-400 text-sm ml-2">{m.email}</span>
+              <div className="min-w-0">
+                <span className="font-medium break-words">{m.user_id === user?.id ? "You" : m.name}</span>
+                <span className="block break-all text-gray-400 text-sm sm:ml-2 sm:inline">{m.email}</span>
                 {m.role === "admin" && (
-                  <span className="text-xs bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 ml-2">
+                  <span className="mt-1 inline-block text-xs bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 sm:ml-2 sm:mt-0">
                     admin
                   </span>
                 )}
               </div>
               {isAdmin && m.user_id !== user?.id && (
                 <button
+                  disabled={remove.isPending}
                   onClick={() => remove.mutate(m.user_id)}
-                  className="text-sm text-red-500 hover:text-red-700"
+                  className="shrink-0 text-sm text-red-500 hover:text-red-700 disabled:opacity-50"
                 >
                   Remove
                 </button>
