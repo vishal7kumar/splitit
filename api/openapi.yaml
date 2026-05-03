@@ -415,6 +415,27 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /api/groups/{id}/activity:
+    parameters:
+      - $ref: "#/components/parameters/GroupId"
+    get:
+      tags: [Activity]
+      summary: List group expense activity
+      responses:
+        "200":
+          description: Group activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GroupActivity"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /api/user/total-balance:
     get:
       tags: [Balances]
@@ -428,6 +449,42 @@ paths:
                 $ref: "#/components/schemas/TotalBalance"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /api/user/friends:
+    get:
+      tags: [Friends]
+      summary: List shared-group friends with bundled balances
+      responses:
+        "200":
+          description: Friends
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FriendSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/user/friends/{friendId}/settle:
+    parameters:
+      - $ref: "#/components/parameters/FriendId"
+    post:
+      tags: [Friends]
+      summary: Settle all outstanding group balances with a friend
+      responses:
+        "201":
+          description: Per-group settlements created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Settlement"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /api/groups/{id}/settlements:
     parameters:
       - $ref: "#/components/parameters/GroupId"
@@ -494,6 +551,13 @@ components:
         minimum: 1
     UserId:
       name: userId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    FriendId:
+      name: friendId
       in: path
       required: true
       schema:
@@ -725,6 +789,29 @@ components:
         created_at:
           type: string
           format: date-time
+    GroupActivity:
+      type: object
+      required: [id, group_id, user_id, user_name, action, summary, created_at]
+      properties:
+        id:
+          type: integer
+        group_id:
+          type: integer
+        expense_id:
+          type: integer
+          nullable: true
+        user_id:
+          type: integer
+        user_name:
+          type: string
+        action:
+          type: string
+          enum: [create, update, delete, comment, settlement]
+        summary:
+          type: string
+        created_at:
+          type: string
+          format: date-time
     ExpenseCommentRequest:
       type: object
       required: [body]
@@ -860,6 +947,45 @@ components:
         balance:
           type: number
           format: double
+    FriendGroupBreakdown:
+      type: object
+      required: [group_id, name, currency, balance, direction, amount]
+      properties:
+        group_id:
+          type: integer
+        name:
+          type: string
+        currency:
+          type: string
+        balance:
+          type: number
+          format: double
+          description: Positive means the friend owes the current user; negative means the current user owes the friend.
+        direction:
+          type: string
+          enum: [owed_to_you, you_owe]
+        amount:
+          type: number
+          format: double
+    FriendSummary:
+      type: object
+      required: [user_id, name, email, total_balance, groups]
+      properties:
+        user_id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        total_balance:
+          type: number
+          format: double
+          description: Positive means the friend owes the current user; negative means the current user owes the friend.
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/FriendGroupBreakdown"
     Settlement:
       type: object
       required: [id, group_id, paid_by, paid_to, amount, date, created_at]

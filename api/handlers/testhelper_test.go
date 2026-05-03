@@ -34,7 +34,7 @@ func setupTestDB(t *testing.T) *sqlx.DB {
 		t.Fatalf("Failed to migrate: %v", err)
 	}
 	_, err = database.Exec(
-		"TRUNCATE expense_comments, expense_history, expense_splits, expenses, settlements, group_members, groups, users RESTART IDENTITY CASCADE",
+		"TRUNCATE group_activity, expense_comments, expense_history, expense_splits, expenses, settlements, group_members, groups, users RESTART IDENTITY CASCADE",
 	)
 	if err != nil {
 		t.Fatalf("Failed to clean test database: %v", err)

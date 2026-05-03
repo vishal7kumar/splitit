@@ -121,8 +121,13 @@ func (h *ExpenseHandler) Create(c *gin.Context) {
 	}
 
 	actorName := h.userName(userID)
-	if err := h.recordHistory(tx, expense.ID, userID, "create", fmt.Sprintf("%s added this expense", actorName)); err != nil {
+	summary := fmt.Sprintf("%s added %s for %.2f", actorName, expenseLabel(expense.Description), expense.Amount)
+	if err := h.recordHistory(tx, expense.ID, userID, "create", summary); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create history"})
+		return
+	}
+	if err := h.recordGroupActivity(tx, groupID, &expense.ID, userID, "create", summary); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create activity"})
 		return
 	}
 
@@ -324,6 +329,10 @@ func (h *ExpenseHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update history"})
 		return
 	}
+	if err := h.recordGroupActivity(tx, groupID, &expenseID, userID, "update", summary); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update activity"})
+		return
+	}
 
 	if err := tx.Commit(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update expense"})
@@ -389,8 +398,13 @@ func (h *ExpenseHandler) Comment(c *gin.Context) {
 	}
 
 	actorName := h.userName(userID)
-	if err := h.recordHistory(tx, expenseID, userID, "comment", fmt.Sprintf("%s commented", actorName)); err != nil {
+	summary := fmt.Sprintf("%s commented on %s", actorName, h.expenseDescription(expenseID))
+	if err := h.recordHistory(tx, expenseID, userID, "comment", summary); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add history: " + err.Error()})
+		return
+	}
+	if err := h.recordGroupActivity(tx, groupID, &expenseID, userID, "comment", summary); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add activity: " + err.Error()})
 		return
 	}
 
@@ -421,7 +435,27 @@ func (h *ExpenseHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	result, err := h.DB.Exec("DELETE FROM expenses WHERE id = $1 AND group_id = $2", expenseID, groupID)
+	var expense models.Expense
+	if err := h.DB.Get(&expense, "SELECT * FROM expenses WHERE id = $1 AND group_id = $2", expenseID, groupID); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Expense not found"})
+		return
+	}
+
+	tx, err := h.DB.Beginx()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete expense"})
+		return
+	}
+	defer tx.Rollback()
+
+	actorName := h.userName(userID)
+	summary := fmt.Sprintf("%s deleted %s for %.2f", actorName, expenseLabel(expense.Description), expense.Amount)
+	if err := h.recordGroupActivity(tx, groupID, &expenseID, userID, "delete", summary); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete activity"})
+		return
+	}
+
+	result, err := tx.Exec("DELETE FROM expenses WHERE id = $1 AND group_id = $2", expenseID, groupID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete expense"})
 		return
@@ -429,6 +463,11 @@ func (h *ExpenseHandler) Delete(c *gin.Context) {
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Expense not found"})
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete expense"})
 		return
 	}
 
@@ -453,6 +492,14 @@ func (h *ExpenseHandler) userName(userID int) string {
 		return "Someone"
 	}
 	return name
+}
+
+func (h *ExpenseHandler) expenseDescription(expenseID int) string {
+	var description string
+	if err := h.DB.Get(&description, "SELECT description FROM expenses WHERE id = $1", expenseID); err != nil {
+		return "this expense"
+	}
+	return expenseLabel(description)
 }
 
 func (h *ExpenseHandler) getExpenseComments(expenseID int) []models.ExpenseComment {
@@ -493,6 +540,22 @@ func (h *ExpenseHandler) recordHistory(tx *sqlx.Tx, expenseID, userID int, actio
 		expenseID, userID, action, summary,
 	)
 	return err
+}
+
+func (h *ExpenseHandler) recordGroupActivity(tx *sqlx.Tx, groupID int, expenseID *int, userID int, action, summary string) error {
+	_, err := tx.Exec(
+		"INSERT INTO group_activity (group_id, expense_id, user_id, action, summary) VALUES ($1, $2, $3, $4, $5)",
+		groupID, expenseID, userID, action, summary,
+	)
+	return err
+}
+
+func expenseLabel(description string) string {
+	description = strings.TrimSpace(description)
+	if description == "" {
+		return "an expense"
+	}
+	return description
 }
 
 func (h *ExpenseHandler) updateSummary(actorName string, oldExpense models.Expense, req createExpenseRequest, oldSplits []models.ExpenseSplit, newSplits []splitEntry) string {

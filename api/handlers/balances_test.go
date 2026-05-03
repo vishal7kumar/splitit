@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -130,6 +131,27 @@ func TestSettlement(t *testing.T) {
 	if len(settList) != 1 {
 		t.Fatalf("expected 1 settlement, got %d", len(settList))
 	}
+
+	w = doJSON(r, "GET", fmt.Sprintf("/api/groups/%d/activity", groupID), nil, cookies1...)
+	assertStatus(t, w, http.StatusOK)
+	var activity []map[string]interface{}
+	decodeJSON(t, w, &activity)
+	if len(activity) != 1 {
+		t.Fatalf("expected 1 settlement activity, got %d", len(activity))
+	}
+	entry := activity[0]
+	if entry["action"] != "settlement" {
+		t.Fatalf("expected settlement activity, got %#v", entry)
+	}
+	if entry["expense_id"] != nil {
+		t.Fatalf("expected settlement activity to have no expense_id, got %#v", entry["expense_id"])
+	}
+	summary := entry["summary"].(string)
+	for _, want := range []string{"Bob", "Alice", "25.00", "settle up"} {
+		if !strings.Contains(summary, want) {
+			t.Fatalf("expected settlement activity summary to contain %q, got %q", want, summary)
+		}
+	}
 }
 
 func TestFutureDateExpenseRejected(t *testing.T) {
@@ -171,5 +193,79 @@ func TestTotalBalance(t *testing.T) {
 	json.Unmarshal(w.Body.Bytes(), &resp)
 	if resp["total_balance"].(float64) != 0 {
 		t.Fatalf("expected 0 total balance for new user, got %v", resp["total_balance"])
+	}
+}
+
+func TestFriendsBundleAndSettleAcrossGroups(t *testing.T) {
+	database := setupTestDB(t)
+	r := setupRouter(database)
+
+	aliceCookies := registerAndLogin(r, "friends-alice@test.com", "pass123", "Alice")
+	bobCookies := registerAndLogin(r, "friends-bob@test.com", "pass123", "Bob")
+
+	groupOneID := createGroup(t, r, aliceCookies, "Friends One")
+	groupTwoID := createGroup(t, r, aliceCookies, "Friends Two")
+	addMember(t, r, aliceCookies, groupOneID, "friends-bob@test.com")
+	addMember(t, r, aliceCookies, groupTwoID, "friends-bob@test.com")
+
+	detailOne := getGroupDetail(t, r, aliceCookies, groupOneID)
+	aliceID := memberIDByEmail(t, detailOne, "friends-alice@test.com")
+	bobID := memberIDByEmail(t, detailOne, "friends-bob@test.com")
+
+	createExpense(t, r, aliceCookies, groupOneID, map[string]interface{}{
+		"amount":      100.0,
+		"description": "Group one dinner",
+		"paid_by":     aliceID,
+		"split_type":  "equal",
+		"splits": []map[string]interface{}{
+			{"user_id": aliceID},
+			{"user_id": bobID},
+		},
+	})
+	createExpense(t, r, aliceCookies, groupTwoID, map[string]interface{}{
+		"amount":      60.0,
+		"description": "Group two cab",
+		"paid_by":     bobID,
+		"split_type":  "equal",
+		"splits": []map[string]interface{}{
+			{"user_id": aliceID},
+			{"user_id": bobID},
+		},
+	})
+
+	w := doJSON(r, "GET", "/api/user/friends", nil, aliceCookies...)
+	assertStatus(t, w, http.StatusOK)
+	var friends []map[string]interface{}
+	decodeJSON(t, w, &friends)
+	if len(friends) != 1 {
+		t.Fatalf("expected 1 friend, got %d", len(friends))
+	}
+	if friends[0]["total_balance"].(float64) != 20.0 {
+		t.Fatalf("expected bundled balance +20, got %#v", friends[0]["total_balance"])
+	}
+	if len(friends[0]["groups"].([]interface{})) != 2 {
+		t.Fatalf("expected 2 group breakups, got %#v", friends[0]["groups"])
+	}
+
+	w = doJSON(r, "POST", fmt.Sprintf("/api/user/friends/%d/settle", bobID), nil, aliceCookies...)
+	assertStatus(t, w, http.StatusCreated)
+	var settlements []map[string]interface{}
+	decodeJSON(t, w, &settlements)
+	if len(settlements) != 2 {
+		t.Fatalf("expected 2 per-group settlements, got %d", len(settlements))
+	}
+
+	w = doJSON(r, "GET", "/api/user/friends", nil, aliceCookies...)
+	assertStatus(t, w, http.StatusOK)
+	decodeJSON(t, w, &friends)
+	if friends[0]["total_balance"].(float64) != 0.0 {
+		t.Fatalf("expected bundled balance to settle to 0, got %#v", friends[0]["total_balance"])
+	}
+
+	w = doJSON(r, "GET", "/api/user/friends", nil, bobCookies...)
+	assertStatus(t, w, http.StatusOK)
+	decodeJSON(t, w, &friends)
+	if friends[0]["total_balance"].(float64) != 0.0 {
+		t.Fatalf("expected reciprocal bundled balance to settle to 0, got %#v", friends[0]["total_balance"])
 	}
 }

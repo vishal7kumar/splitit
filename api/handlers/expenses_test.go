@@ -324,6 +324,20 @@ func TestDeleteExpenseCascadesCommentsAndHistory(t *testing.T) {
 	if commentCount != 0 || historyCount != 0 {
 		t.Fatalf("expected cascaded comments/history, got comments=%d history=%d", commentCount, historyCount)
 	}
+
+	w = doJSON(r, "GET", fmt.Sprintf("/api/groups/%d/activity", groupID), nil, cookies...)
+	assertStatus(t, w, http.StatusOK)
+	var activity []map[string]interface{}
+	decodeJSON(t, w, &activity)
+	if len(activity) != 3 {
+		t.Fatalf("expected create, comment, and delete activity, got %d", len(activity))
+	}
+	if activity[0]["action"] != "delete" || !strings.Contains(activity[0]["summary"].(string), "deleted") {
+		t.Fatalf("expected newest activity to be delete, got %#v", activity[0])
+	}
+	if activity[0]["expense_id"] != nil {
+		t.Fatalf("expected deleted expense activity to clear expense_id, got %#v", activity[0]["expense_id"])
+	}
 }
 
 func TestExactSplitMismatch(t *testing.T) {

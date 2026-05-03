@@ -6,8 +6,8 @@ import { listExpenses, deleteExpense, type Expense } from "../../api/expenses";
 import {
   getGroupBalances,
   createSettlement,
-  listSettlements,
 } from "../../api/settlements";
+import { listGroupActivity } from "../../api/activity";
 import { useAuth } from "../auth/useAuth";
 import { formatDate } from "../../lib/formatDate";
 import { formatCurrency } from "../../lib/currency";
@@ -21,7 +21,6 @@ export default function GroupDetailPage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
   const [settleDirection, setSettleDirection] = useState<"paid" | "received">("paid");
   const [settleOtherId, setSettleOtherId] = useState<number>(0);
   const [settleAmount, setSettleAmount] = useState("");
@@ -34,11 +33,10 @@ export default function GroupDetailPage() {
   });
 
   const { data: expenses = [] } = useQuery({
-    queryKey: ["expenses", groupId, search, categoryFilter],
+    queryKey: ["expenses", groupId, search],
     queryFn: () =>
       listExpenses(groupId, {
         q: search || undefined,
-        category: categoryFilter || undefined,
       }),
   });
 
@@ -47,9 +45,9 @@ export default function GroupDetailPage() {
     queryFn: () => getGroupBalances(groupId),
   });
 
-  const { data: settlements = [] } = useQuery({
-    queryKey: ["settlements", groupId],
-    queryFn: () => listSettlements(groupId),
+  const { data: activity = [] } = useQuery({
+    queryKey: ["activity", groupId],
+    queryFn: () => listGroupActivity(groupId),
   });
 
   const settle = useMutation({
@@ -58,6 +56,8 @@ export default function GroupDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["balances", groupId] });
       queryClient.invalidateQueries({ queryKey: ["settlements", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["friends"] });
+      queryClient.invalidateQueries({ queryKey: ["total-balance"] });
       setSettleOtherId(0);
       setSettleAmount("");
     },
@@ -93,8 +93,13 @@ export default function GroupDetailPage() {
 
   const delExpense = useMutation({
     mutationFn: (eid: number) => deleteExpense(groupId, eid),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["expenses", groupId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["activity", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["balances", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["friends"] });
+      queryClient.invalidateQueries({ queryKey: ["total-balance"] });
+    },
   });
 
   function handleAddMember(e: FormEvent) {
@@ -110,6 +115,8 @@ export default function GroupDetailPage() {
   const currentMember = members.find((m) => m.user_id === user?.id);
   const isAdmin = currentMember?.role === "admin";
   const memberMap = Object.fromEntries(members.map((m) => [m.user_id, m]));
+  const activityText = (summary: string, actorName: string) =>
+    summary.startsWith(actorName) ? summary.slice(actorName.length).trim() : summary;
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -158,20 +165,13 @@ export default function GroupDetailPage() {
       {/* Expenses */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold mb-3">Expenses</h2>
-        <div className="flex flex-col gap-2 mb-4 sm:flex-row">
+        <div className="mb-4">
           <input
             type="text"
             placeholder="Search expenses..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="min-w-0 flex-1 border rounded px-3 py-2 text-sm"
-          />
-          <input
-            type="text"
-            placeholder="Category"
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="w-full min-w-0 border rounded px-3 py-2 text-sm sm:w-32"
+            className="w-full border rounded px-3 py-2 text-sm"
           />
         </div>
 
@@ -195,9 +195,6 @@ export default function GroupDetailPage() {
                 <div className="min-w-0">
                   <span className="font-medium break-words">
                     {exp.description || "Untitled"}
-                  </span>
-                  <span className="text-gray-400 text-sm ml-2">
-                    {exp.category}
                   </span>
                   <div className="break-words text-sm text-gray-500">
                     {exp.paid_by === user?.id ? "You" : (memberMap[exp.paid_by]?.name || "Unknown")} paid{" "}
@@ -372,23 +369,24 @@ export default function GroupDetailPage() {
         </section>
       )}
 
-      {/* Settlements */}
-      {settlements.length > 0 && (
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Settlement History</h2>
+      {/* Activity */}
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold mb-3">Activity History</h2>
+        {activity.length === 0 ? (
+          <p className="text-gray-400 text-sm">No activity yet.</p>
+        ) : (
           <ul className="space-y-1">
-            {settlements.map((s) => (
-              <li key={s.id} className="break-words text-sm border rounded p-2 text-gray-600">
-                <span className="font-medium">{s.paid_by === user?.id ? "You" : s.paid_by_name}</span>
-                {" paid "}
-                <span className="font-medium">{s.paid_to === user?.id ? "You" : s.paid_to_name}</span>
-                {" "}{formatCurrency(group.currency, s.amount)}
-                <span className="text-gray-400 ml-2">{formatDate(s.created_at)}</span>
+            {activity.map((item) => (
+              <li key={item.id} className="break-words text-sm border rounded p-2 text-gray-600">
+                <span className="font-medium">{item.user_id === user?.id ? "You" : item.user_name}</span>
+                {" "}
+                <span>{activityText(item.summary, item.user_name)}</span>
+                <span className="text-gray-400 ml-2">{formatDate(item.created_at)}</span>
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        )}
+      </section>
 
       {/* Members */}
       <section className="mb-8">

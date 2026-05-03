@@ -43,9 +43,16 @@ func Setup(db *sqlx.DB) *gin.Engine {
 			protected.DELETE("/groups/:id/expenses/:eid", expenses.Delete)
 			protected.POST("/groups/:id/expenses/:eid/comments", expenses.Comment)
 
+			activity := &handlers.ActivityHandler{DB: db}
+			protected.GET("/groups/:id/activity", activity.List)
+
 			balances := &handlers.BalanceHandler{DB: db}
 			protected.GET("/groups/:id/balances", balances.GroupBalances)
 			protected.GET("/user/total-balance", balances.TotalBalance)
+
+			friends := &handlers.FriendHandler{DB: db}
+			protected.GET("/user/friends", friends.List)
+			protected.POST("/user/friends/:friendId/settle", friends.Settle)
 
 			settlements := &handlers.SettlementHandler{DB: db}
 			protected.POST("/groups/:id/settlements", settlements.Create)

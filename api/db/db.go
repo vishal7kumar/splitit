@@ -69,6 +69,15 @@ func Migrate(db *sqlx.DB) error {
 			summary     TEXT NOT NULL,
 			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
+		`CREATE TABLE IF NOT EXISTS group_activity (
+			id          SERIAL PRIMARY KEY,
+			group_id    INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+			expense_id  INTEGER REFERENCES expenses(id) ON DELETE SET NULL,
+			user_id     INTEGER NOT NULL REFERENCES users(id),
+			action      TEXT NOT NULL,
+			summary     TEXT NOT NULL,
+			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
 		`CREATE TABLE IF NOT EXISTS settlements (
 			id          SERIAL PRIMARY KEY,
 			group_id    INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
@@ -77,6 +86,18 @@ func Migrate(db *sqlx.DB) error {
 			amount      NUMERIC(12,2) NOT NULL,
 			date        DATE NOT NULL DEFAULT CURRENT_DATE,
 			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)`,
+		`CREATE TABLE IF NOT EXISTS backup_runs (
+			id            SERIAL PRIMARY KEY,
+			scheduled_for DATE NOT NULL,
+			stage         TEXT NOT NULL,
+			object_key    TEXT NOT NULL DEFAULT '',
+			status        TEXT NOT NULL,
+			error         TEXT,
+			started_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			finished_at   TIMESTAMPTZ,
+			created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			UNIQUE(stage, scheduled_for)
 		)`,
 	}
 	for _, t := range tables {

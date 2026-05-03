@@ -180,22 +180,13 @@ export default function EditExpensePage() {
           onChange={(e) => setDescription(e.target.value)}
           className="w-full border rounded px-3 py-2"
         />
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <input
-            type="text"
-            placeholder="Category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="min-w-0 flex-1 border rounded px-3 py-2"
-          />
-          <input
-            type="date"
-            value={date}
-            max={new Date().toISOString().split("T")[0]}
-            onChange={(e) => setDate(e.target.value)}
-            className="min-w-0 flex-1 border rounded px-3 py-2"
-          />
-        </div>
+        <input
+          type="date"
+          value={date}
+          max={new Date().toISOString().split("T")[0]}
+          onChange={(e) => setDate(e.target.value)}
+          className="w-full border rounded px-3 py-2"
+        />
 
         <div>
           <label className="text-sm font-medium text-gray-700">Paid by</label>

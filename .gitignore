@@ -26,6 +26,8 @@ dist-ssr
 # Env files with secrets
 .env
 api/.env
+api/.env.*
+!api/.env.example
 
 # Go
 *.exe
@@ -33,4 +35,3 @@ api/.env
 # AI
 CLAUDE.md
 .codex
-

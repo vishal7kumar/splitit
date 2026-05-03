@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -80,6 +81,13 @@ func (h *SettlementHandler) Create(c *gin.Context) {
 		return
 	}
 
+	tx, err := h.DB.Beginx()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create settlement"})
+		return
+	}
+	defer tx.Rollback()
+
 	var settlement models.Settlement
 	query := "INSERT INTO settlements (group_id, paid_by, paid_to, amount"
 	values := "VALUES ($1, $2, $3, $4"
@@ -92,8 +100,19 @@ func (h *SettlementHandler) Create(c *gin.Context) {
 	}
 
 	query += ") " + values + ") RETURNING *"
-	err = h.DB.Get(&settlement, query, args...)
+	err = tx.Get(&settlement, query, args...)
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create settlement"})
+		return
+	}
+
+	summary := fmt.Sprintf("%s paid %s %.2f to settle up", h.userName(paidBy), h.userName(req.PaidTo), req.Amount)
+	if err := h.recordGroupActivity(tx, groupID, userID, summary); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create settlement activity"})
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create settlement"})
 		return
 	}
@@ -143,4 +162,20 @@ func (h *SettlementHandler) isMember(groupID, userID int) bool {
 	var count int
 	h.DB.Get(&count, "SELECT COUNT(*) FROM group_members WHERE group_id = $1 AND user_id = $2", groupID, userID)
 	return count > 0
+}
+
+func (h *SettlementHandler) userName(userID int) string {
+	var name string
+	if err := h.DB.Get(&name, "SELECT name FROM users WHERE id = $1", userID); err != nil || name == "" {
+		return "Someone"
+	}
+	return name
+}
+
+func (h *SettlementHandler) recordGroupActivity(tx *sqlx.Tx, groupID, userID int, summary string) error {
+	_, err := tx.Exec(
+		"INSERT INTO group_activity (group_id, user_id, action, summary) VALUES ($1, $2, 'settlement', $3)",
+		groupID, userID, summary,
+	)
+	return err
 }
