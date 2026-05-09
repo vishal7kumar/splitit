@@ -17,6 +17,8 @@ type AuthHandler struct {
 	DB *sqlx.DB
 }
 
+const loginSessionDuration = 30 * time.Minute
+
 type loginRequest struct {
 	Email    string `json:"email" binding:"required"`
 	Password string `json:"password" binding:"required"`
@@ -43,7 +45,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": user.ID,
-		"exp": time.Now().Add(15 * time.Minute).Unix(),
+		"exp": time.Now().Add(loginSessionDuration).Unix(),
 	})
 
 	signed, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
@@ -53,7 +55,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	secure := os.Getenv("ENV") == "production"
-	c.SetCookie("token", signed, 900, "/", "", secure, true)
+	c.SetCookie("token", signed, int(loginSessionDuration.Seconds()), "/", "", secure, true)
 	c.JSON(http.StatusOK, gin.H{"user": user})
 }
 

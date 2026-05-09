@@ -61,6 +61,9 @@ func TestLoginSuccess(t *testing.T) {
 	for _, c := range cookies {
 		if c.Name == "token" && c.Value != "" {
 			found = true
+			if c.MaxAge != 1800 {
+				t.Fatalf("expected token cookie MaxAge 1800, got %d", c.MaxAge)
+			}
 		}
 	}
 	if !found {
