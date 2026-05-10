@@ -25,6 +25,7 @@ function renderWithProviders() {
 describe("LoginPage", () => {
   it("renders the sign in form", () => {
     renderWithProviders();
+    expect(screen.getByText("splitit")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Email")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Password")).toBeInTheDocument();

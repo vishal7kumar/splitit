@@ -1,1 +1,20 @@
 @import "tailwindcss";
+
+a,
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+summary,
+label:has(input:not(:disabled)),
+input[type="button"]:not(:disabled),
+input[type="reset"]:not(:disabled),
+input[type="submit"]:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}

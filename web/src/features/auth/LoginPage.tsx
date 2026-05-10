@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { login } from "../../api/auth";
+import BrandLogo from "../../components/BrandLogo";
 import { useAuth } from "./useAuth";
 
 export default function LoginPage() {
@@ -28,6 +29,9 @@ export default function LoginPage() {
         onSubmit={handleSubmit}
         className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm space-y-4"
       >
+        <div className="flex justify-center">
+          <BrandLogo size="lg" />
+        </div>
         <h1 className="text-2xl font-bold text-center">Sign in</h1>
         {error && (
           <p className="text-red-600 text-sm text-center">{error}</p>

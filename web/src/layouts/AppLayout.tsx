@@ -1,5 +1,6 @@
 import { Outlet, useNavigate, Link } from "react-router-dom";
 import { logout } from "../api/auth";
+import BrandLogo from "../components/BrandLogo";
 import { useAuth } from "../features/auth/useAuth";
 
 export default function AppLayout() {
@@ -16,7 +17,9 @@ export default function AppLayout() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm px-4 py-3 flex items-center justify-between gap-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-5 sm:gap-6">
-          <Link to="/dashboard" className="shrink-0 text-lg font-semibold">Splitit</Link>
+          <Link to="/dashboard" className="shrink-0">
+            <BrandLogo />
+          </Link>
           <Link to="/groups" className="text-sm text-gray-600 hover:text-gray-900">Groups</Link>
         </div>
         <div className="flex shrink-0 items-center gap-3 sm:gap-4">
