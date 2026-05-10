@@ -96,6 +96,11 @@ export default function EditExpensePage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["expense", groupId, expenseId] });
+      queryClient.invalidateQueries({ queryKey: ["balances", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["friends"] });
+      queryClient.invalidateQueries({ queryKey: ["total-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["user-activity"] });
       navigate(`/groups/${groupId}`);
     },
     onError: (err: Error & { response?: { data?: { error?: string } } }) =>

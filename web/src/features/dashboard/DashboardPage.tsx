@@ -1,15 +1,18 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../auth/useAuth";
 import { getTotalBalance } from "../../api/settlements";
 import { listFriends, settleFriend } from "../../api/friends";
+import { listUserActivity } from "../../api/activity";
 import { formatCurrency } from "../../lib/currency";
+import { formatDate } from "../../lib/formatDate";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [openFriendId, setOpenFriendId] = useState<number | null>(null);
+  const activityLoadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const { data } = useQuery({
     queryKey: ["total-balance"],
@@ -21,6 +24,35 @@ export default function DashboardPage() {
     queryFn: listFriends,
   });
 
+  const {
+    data: activityPages,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["user-activity"],
+    queryFn: ({ pageParam }) => listUserActivity({ limit: 20, cursor: pageParam }),
+    initialPageParam: "",
+    getNextPageParam: (lastPage) => lastPage.next_cursor || undefined,
+  });
+
+  useEffect(() => {
+    const node = activityLoadMoreRef.current;
+    if (!node || !hasNextPage) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: "160px" }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
   const settle = useMutation({
     mutationFn: (friendId: number) => settleFriend(friendId),
     onSuccess: () => {
@@ -28,8 +60,13 @@ export default function DashboardPage() {
       queryClient.invalidateQueries({ queryKey: ["total-balance"] });
       queryClient.invalidateQueries({ queryKey: ["balances"] });
       queryClient.invalidateQueries({ queryKey: ["settlements"] });
+      queryClient.invalidateQueries({ queryKey: ["user-activity"] });
     },
   });
+
+  const activity = activityPages?.pages.flatMap((page) => page.items) || [];
+  const activityText = (summary: string, actorName: string) =>
+    summary.startsWith(actorName) ? summary.slice(actorName.length).trim() : summary;
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -146,7 +183,7 @@ export default function DashboardPage() {
           </section>
 
           {data.groups.length > 0 && (
-            <section>
+            <section className="mb-6">
               <h2 className="text-lg font-semibold mb-3">Per group</h2>
               <ul className="space-y-2">
                 {data.groups.map((g) => (
@@ -175,6 +212,62 @@ export default function DashboardPage() {
               </ul>
             </section>
           )}
+
+          <section>
+            <h2 className="text-lg font-semibold mb-3">Recent activity</h2>
+            {activity.length === 0 ? (
+              <p className="text-gray-400 text-sm border rounded p-3">
+                No activity yet.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {activity.map((item) => {
+                  const content = (
+                    <div className="break-words text-sm text-gray-600">
+                      {!item.is_involved && (
+                        <span className="mb-1 inline-block rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                          You were not involved
+                        </span>
+                      )}
+                      <div>
+                        <span className="font-medium">
+                          {item.user_id === user?.id ? "You" : item.user_name}
+                        </span>{" "}
+                        <span>{activityText(item.summary, item.user_name)}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-gray-400">
+                        {item.group_name || "Group"} &middot; {formatDate(item.created_at)}
+                      </div>
+                    </div>
+                  );
+
+                  return (
+                    <li key={item.id}>
+                      {item.expense_id ? (
+                        <Link
+                          to={`/groups/${item.group_id}/expenses/${item.expense_id}`}
+                          className="block border rounded p-3 hover:bg-gray-50"
+                        >
+                          {content}
+                        </Link>
+                      ) : (
+                        <Link
+                          to={`/groups/${item.group_id}`}
+                          className="block border rounded p-3 hover:bg-gray-50"
+                        >
+                          {content}
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <div ref={activityLoadMoreRef} className="h-6" />
+            {isFetchingNextPage && (
+              <p className="text-center text-xs text-gray-400">Loading more...</p>
+            )}
+          </section>
         </>
       )}
     </div>

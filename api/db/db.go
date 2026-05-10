@@ -78,6 +78,12 @@ func Migrate(db *sqlx.DB) error {
 			summary     TEXT NOT NULL,
 			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		)`,
+		`CREATE TABLE IF NOT EXISTS group_activity_participants (
+			activity_id INTEGER NOT NULL REFERENCES group_activity(id) ON DELETE CASCADE,
+			user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			role        TEXT NOT NULL,
+			PRIMARY KEY (activity_id, user_id, role)
+		)`,
 		`CREATE TABLE IF NOT EXISTS settlements (
 			id          SERIAL PRIMARY KEY,
 			group_id    INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
@@ -109,6 +115,22 @@ func Migrate(db *sqlx.DB) error {
 	// Column migrations for existing tables
 	migrations := []string{
 		`ALTER TABLE groups ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'USD'`,
+		`CREATE INDEX IF NOT EXISTS idx_group_members_user_group ON group_members(user_id, group_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_group_activity_group_created_id ON group_activity(group_id, created_at DESC, id DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_group_activity_participants_activity_user ON group_activity_participants(activity_id, user_id)`,
+		`INSERT INTO group_activity_participants (activity_id, user_id, role)
+		 SELECT id, user_id, 'actor' FROM group_activity
+		 ON CONFLICT DO NOTHING`,
+		`INSERT INTO group_activity_participants (activity_id, user_id, role)
+		 SELECT ga.id, e.paid_by, 'payer'
+		 FROM group_activity ga
+		 JOIN expenses e ON e.id = ga.expense_id
+		 ON CONFLICT DO NOTHING`,
+		`INSERT INTO group_activity_participants (activity_id, user_id, role)
+		 SELECT ga.id, es.user_id, 'split'
+		 FROM group_activity ga
+		 JOIN expense_splits es ON es.expense_id = ga.expense_id
+		 ON CONFLICT DO NOTHING`,
 	}
 	for _, m := range migrations {
 		db.Exec(m) // ignore errors for already-applied migrations

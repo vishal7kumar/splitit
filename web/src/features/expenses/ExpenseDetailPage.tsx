@@ -38,6 +38,7 @@ export default function ExpenseDetailPage() {
       setComment("");
       setError("");
       queryClient.invalidateQueries({ queryKey: ["expense", groupId, expenseId] });
+      queryClient.invalidateQueries({ queryKey: ["user-activity"] });
     },
     onError: (err: Error & { response?: { data?: { error?: string } } }) =>
       setError(err.response?.data?.error || "Failed to add comment"),
@@ -48,6 +49,9 @@ export default function ExpenseDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses", groupId] });
       queryClient.invalidateQueries({ queryKey: ["balances", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["friends"] });
+      queryClient.invalidateQueries({ queryKey: ["total-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["user-activity"] });
       navigate(`/groups/${groupId}`);
     },
   });

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getGroup, type GroupMember } from "../../api/groups";
 import { createExpense, type SplitEntry } from "../../api/expenses";
 import { useAuth } from "../auth/useAuth";
@@ -21,6 +21,7 @@ export default function AddExpensePage() {
   const { id } = useParams<{ id: string }>();
   const groupId = Number(id);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
 
   const [amount, setAmount] = useState("");
@@ -63,7 +64,14 @@ export default function AddExpensePage() {
         split_type: splitType,
         splits,
       }),
-    onSuccess: () => navigate(`/groups/${groupId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["balances", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["friends"] });
+      queryClient.invalidateQueries({ queryKey: ["total-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["user-activity"] });
+      navigate(`/groups/${groupId}`);
+    },
     onError: (err: Error & { response?: { data?: { error?: string } } }) =>
       setError(err.response?.data?.error || "Failed to create expense"),
   });

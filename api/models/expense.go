@@ -41,12 +41,14 @@ type ExpenseHistory struct {
 }
 
 type GroupActivity struct {
-	ID        int       `db:"id" json:"id"`
-	GroupID   int       `db:"group_id" json:"group_id"`
-	ExpenseID *int      `db:"expense_id" json:"expense_id"`
-	UserID    int       `db:"user_id" json:"user_id"`
-	UserName  string    `db:"user_name" json:"user_name"`
-	Action    string    `db:"action" json:"action"`
-	Summary   string    `db:"summary" json:"summary"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	ID         int       `db:"id" json:"id"`
+	GroupID    int       `db:"group_id" json:"group_id"`
+	GroupName  string    `db:"group_name" json:"group_name,omitempty"`
+	ExpenseID  *int      `db:"expense_id" json:"expense_id"`
+	UserID     int       `db:"user_id" json:"user_id"`
+	UserName   string    `db:"user_name" json:"user_name"`
+	Action     string    `db:"action" json:"action"`
+	Summary    string    `db:"summary" json:"summary"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	IsInvolved bool      `db:"is_involved" json:"is_involved"`
 }

@@ -25,6 +25,11 @@ type splitEntry struct {
 	Shares      float64 `json:"shares,omitempty"`
 }
 
+type activityParticipant struct {
+	UserID int
+	Role   string
+}
+
 type createExpenseRequest struct {
 	Amount      float64      `json:"amount" binding:"required"`
 	Description string       `json:"description"`
@@ -126,7 +131,8 @@ func (h *ExpenseHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create history"})
 		return
 	}
-	if err := h.recordGroupActivity(tx, groupID, &expense.ID, userID, "create", summary); err != nil {
+	participants := expenseParticipants(userID, req.PaidBy, shares)
+	if err := h.recordGroupActivity(tx, groupID, &expense.ID, userID, "create", summary, participants); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create activity"})
 		return
 	}
@@ -329,7 +335,8 @@ func (h *ExpenseHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update history"})
 		return
 	}
-	if err := h.recordGroupActivity(tx, groupID, &expenseID, userID, "update", summary); err != nil {
+	participants := updatedExpenseParticipants(userID, oldExpense.PaidBy, req.PaidBy, oldSplits, shares)
+	if err := h.recordGroupActivity(tx, groupID, &expenseID, userID, "update", summary, participants); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update activity"})
 		return
 	}
@@ -403,7 +410,8 @@ func (h *ExpenseHandler) Comment(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add history: " + err.Error()})
 		return
 	}
-	if err := h.recordGroupActivity(tx, groupID, &expenseID, userID, "comment", summary); err != nil {
+	participants := h.existingExpenseParticipants(expenseID, userID, "commenter")
+	if err := h.recordGroupActivity(tx, groupID, &expenseID, userID, "comment", summary, participants); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add activity: " + err.Error()})
 		return
 	}
@@ -450,7 +458,8 @@ func (h *ExpenseHandler) Delete(c *gin.Context) {
 
 	actorName := h.userName(userID)
 	summary := fmt.Sprintf("%s deleted %s for %.2f", actorName, expenseLabel(expense.Description), expense.Amount)
-	if err := h.recordGroupActivity(tx, groupID, &expenseID, userID, "delete", summary); err != nil {
+	participants := h.deletedExpenseParticipants(expenseID, userID, expense.PaidBy)
+	if err := h.recordGroupActivity(tx, groupID, &expenseID, userID, "delete", summary, participants); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete activity"})
 		return
 	}
@@ -542,12 +551,89 @@ func (h *ExpenseHandler) recordHistory(tx *sqlx.Tx, expenseID, userID int, actio
 	return err
 }
 
-func (h *ExpenseHandler) recordGroupActivity(tx *sqlx.Tx, groupID int, expenseID *int, userID int, action, summary string) error {
-	_, err := tx.Exec(
-		"INSERT INTO group_activity (group_id, expense_id, user_id, action, summary) VALUES ($1, $2, $3, $4, $5)",
+func (h *ExpenseHandler) recordGroupActivity(tx *sqlx.Tx, groupID int, expenseID *int, userID int, action, summary string, participants []activityParticipant) error {
+	var activityID int
+	err := tx.Get(&activityID,
+		"INSERT INTO group_activity (group_id, expense_id, user_id, action, summary) VALUES ($1, $2, $3, $4, $5) RETURNING id",
 		groupID, expenseID, userID, action, summary,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	return recordActivityParticipants(tx, activityID, participants)
+}
+
+func recordActivityParticipants(tx *sqlx.Tx, activityID int, participants []activityParticipant) error {
+	for _, participant := range participants {
+		if participant.UserID == 0 || participant.Role == "" {
+			continue
+		}
+		_, err := tx.Exec(
+			`INSERT INTO group_activity_participants (activity_id, user_id, role)
+			 VALUES ($1, $2, $3)
+			 ON CONFLICT DO NOTHING`,
+			activityID, participant.UserID, participant.Role,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func expenseParticipants(actorID, paidBy int, splits []splitEntry) []activityParticipant {
+	participants := []activityParticipant{{UserID: actorID, Role: "actor"}}
+	if paidBy != 0 {
+		participants = append(participants, activityParticipant{UserID: paidBy, Role: "payer"})
+	}
+	for _, split := range splits {
+		participants = append(participants, activityParticipant{UserID: split.UserID, Role: "split"})
+	}
+	return participants
+}
+
+func updatedExpenseParticipants(actorID, oldPaidBy, newPaidBy int, oldSplits []models.ExpenseSplit, newSplits []splitEntry) []activityParticipant {
+	participants := []activityParticipant{{UserID: actorID, Role: "actor"}}
+	if oldPaidBy != 0 {
+		participants = append(participants, activityParticipant{UserID: oldPaidBy, Role: "previous_payer"})
+	}
+	if newPaidBy != 0 {
+		participants = append(participants, activityParticipant{UserID: newPaidBy, Role: "payer"})
+	}
+	for _, split := range oldSplits {
+		participants = append(participants, activityParticipant{UserID: split.UserID, Role: "previous_split"})
+	}
+	for _, split := range newSplits {
+		participants = append(participants, activityParticipant{UserID: split.UserID, Role: "split"})
+	}
+	return participants
+}
+
+func (h *ExpenseHandler) existingExpenseParticipants(expenseID, actorID int, actorRole string) []activityParticipant {
+	participants := []activityParticipant{{UserID: actorID, Role: actorRole}}
+	var paidBy int
+	if err := h.DB.Get(&paidBy, "SELECT paid_by FROM expenses WHERE id = $1", expenseID); err == nil {
+		participants = append(participants, activityParticipant{UserID: paidBy, Role: "payer"})
+	}
+	var splitUserIDs []int
+	h.DB.Select(&splitUserIDs, "SELECT user_id FROM expense_splits WHERE expense_id = $1", expenseID)
+	for _, userID := range splitUserIDs {
+		participants = append(participants, activityParticipant{UserID: userID, Role: "split"})
+	}
+	return participants
+}
+
+func (h *ExpenseHandler) deletedExpenseParticipants(expenseID, actorID, paidBy int) []activityParticipant {
+	participants := []activityParticipant{{UserID: actorID, Role: "actor"}}
+	if paidBy != 0 {
+		participants = append(participants, activityParticipant{UserID: paidBy, Role: "payer"})
+	}
+	var splitUserIDs []int
+	h.DB.Select(&splitUserIDs, "SELECT user_id FROM expense_splits WHERE expense_id = $1", expenseID)
+	for _, userID := range splitUserIDs {
+		participants = append(participants, activityParticipant{UserID: userID, Role: "split"})
+	}
+	return participants
 }
 
 func expenseLabel(description string) string {

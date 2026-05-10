@@ -107,7 +107,12 @@ func (h *SettlementHandler) Create(c *gin.Context) {
 	}
 
 	summary := fmt.Sprintf("%s paid %s %.2f to settle up", h.userName(paidBy), h.userName(req.PaidTo), req.Amount)
-	if err := h.recordGroupActivity(tx, groupID, userID, summary); err != nil {
+	participants := []activityParticipant{
+		{UserID: userID, Role: "actor"},
+		{UserID: paidBy, Role: "payer"},
+		{UserID: req.PaidTo, Role: "recipient"},
+	}
+	if err := h.recordGroupActivity(tx, groupID, userID, summary, participants); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create settlement activity"})
 		return
 	}
@@ -172,10 +177,14 @@ func (h *SettlementHandler) userName(userID int) string {
 	return name
 }
 
-func (h *SettlementHandler) recordGroupActivity(tx *sqlx.Tx, groupID, userID int, summary string) error {
-	_, err := tx.Exec(
-		"INSERT INTO group_activity (group_id, user_id, action, summary) VALUES ($1, $2, 'settlement', $3)",
+func (h *SettlementHandler) recordGroupActivity(tx *sqlx.Tx, groupID, userID int, summary string, participants []activityParticipant) error {
+	var activityID int
+	err := tx.Get(&activityID,
+		"INSERT INTO group_activity (group_id, user_id, action, summary) VALUES ($1, $2, 'settlement', $3) RETURNING id",
 		groupID, userID, summary,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	return recordActivityParticipants(tx, activityID, participants)
 }

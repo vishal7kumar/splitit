@@ -7,7 +7,6 @@ import {
   getGroupBalances,
   createSettlement,
 } from "../../api/settlements";
-import { listGroupActivity } from "../../api/activity";
 import { useAuth } from "../auth/useAuth";
 import { formatDate } from "../../lib/formatDate";
 import { formatCurrency } from "../../lib/currency";
@@ -45,11 +44,6 @@ export default function GroupDetailPage() {
     queryFn: () => getGroupBalances(groupId),
   });
 
-  const { data: activity = [] } = useQuery({
-    queryKey: ["activity", groupId],
-    queryFn: () => listGroupActivity(groupId),
-  });
-
   const settle = useMutation({
     mutationFn: ({ paidBy, paidTo, amount }: { paidBy: number; paidTo: number; amount: number }) =>
       createSettlement(groupId, paidBy, paidTo, amount),
@@ -58,6 +52,7 @@ export default function GroupDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["settlements", groupId] });
       queryClient.invalidateQueries({ queryKey: ["friends"] });
       queryClient.invalidateQueries({ queryKey: ["total-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["user-activity"] });
       setSettleOtherId(0);
       setSettleAmount("");
     },
@@ -95,7 +90,7 @@ export default function GroupDetailPage() {
     mutationFn: (eid: number) => deleteExpense(groupId, eid),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses", groupId] });
-      queryClient.invalidateQueries({ queryKey: ["activity", groupId] });
+      queryClient.invalidateQueries({ queryKey: ["user-activity"] });
       queryClient.invalidateQueries({ queryKey: ["balances", groupId] });
       queryClient.invalidateQueries({ queryKey: ["friends"] });
       queryClient.invalidateQueries({ queryKey: ["total-balance"] });
@@ -115,8 +110,6 @@ export default function GroupDetailPage() {
   const currentMember = members.find((m) => m.user_id === user?.id);
   const isAdmin = currentMember?.role === "admin";
   const memberMap = Object.fromEntries(members.map((m) => [m.user_id, m]));
-  const activityText = (summary: string, actorName: string) =>
-    summary.startsWith(actorName) ? summary.slice(actorName.length).trim() : summary;
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -368,25 +361,6 @@ export default function GroupDetailPage() {
           </div>
         </section>
       )}
-
-      {/* Activity */}
-      <section className="mb-8">
-        <h2 className="text-lg font-semibold mb-3">Activity History</h2>
-        {activity.length === 0 ? (
-          <p className="text-gray-400 text-sm">No activity yet.</p>
-        ) : (
-          <ul className="space-y-1">
-            {activity.map((item) => (
-              <li key={item.id} className="break-words text-sm border rounded p-2 text-gray-600">
-                <span className="font-medium">{item.user_id === user?.id ? "You" : item.user_name}</span>
-                {" "}
-                <span>{activityText(item.summary, item.user_name)}</span>
-                <span className="text-gray-400 ml-2">{formatDate(item.created_at)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
 
       {/* Members */}
       <section className="mb-8">
