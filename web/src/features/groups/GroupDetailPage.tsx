@@ -398,25 +398,25 @@ export default function GroupDetailPage() {
               placeholder="Search expenses..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 shadow-sm"
             />
           </div>
 
           {expenses.length === 0 ? (
-            <p className="text-gray-400 text-sm">No expenses yet.</p>
+            <p className="text-gray-400 text-sm italic py-4">No expenses yet.</p>
           ) : (
             <div className="space-y-6">
               {groupedExpenses.map((groupObj) => (
                 <div key={groupObj.monthKey} className="relative">
-                  <div className="sticky top-0 bg-gray-50/95 backdrop-blur-xs py-2 z-10 flex items-center justify-between border-b border-gray-200 mb-2">
+                  <div className="sticky top-0 bg-gray-50/95 backdrop-blur-xs py-2 z-10 flex items-center justify-between border-b border-gray-200 mb-3">
                     <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                       {groupObj.monthLabel}
                     </span>
-                    <span className="text-xs text-gray-400 font-medium">
+                    <span className="text-xs text-gray-400 font-semibold">
                       {groupObj.items.length} {groupObj.items.length === 1 ? "expense" : "expenses"}
                     </span>
                   </div>
-                  <ul className="space-y-2">
+                  <ul className="space-y-3">
                     {groupObj.items.map((exp: Expense) => (
                       <li
                         key={exp.id}
@@ -428,24 +428,33 @@ export default function GroupDetailPage() {
                             navigate(`/groups/${groupId}/expenses/${exp.id}`);
                           }
                         }}
-                        className="flex flex-col gap-2 border rounded p-3 cursor-pointer hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between transition-colors bg-white shadow-2xs"
+                        className="flex flex-col gap-3 border border-gray-200 bg-white rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-gray-300 sm:flex-row sm:items-center sm:justify-between transition-all duration-200 shadow-sm"
                       >
                         <div className="min-w-0">
-                          <span className="font-medium break-words text-gray-900">
+                          <span className="font-semibold break-words text-gray-900 text-sm">
                             {exp.description || "Untitled"}
                           </span>
-                          <div className="break-words text-sm text-gray-500 mt-0.5">
-                            {exp.paid_by === user?.id ? "You" : (memberMap[exp.paid_by]?.name || "Unknown")} paid{" "}
-                            {formatCurrency(group.currency, exp.amount)} &middot; {formatDate(exp.date)}
+                          <div className="break-words text-xs text-gray-500 mt-1 font-medium">
+                            <span className="font-semibold text-gray-700">
+                              {exp.paid_by === user?.id ? "You" : (memberMap[exp.paid_by]?.name || "Unknown")}
+                            </span>{" "}
+                            paid{" "}
+                            <span className="font-semibold text-gray-700">
+                              {formatCurrency(group.currency, exp.amount)}
+                            </span>{" "}
+                            &middot; {formatDate(exp.date)}
                           </div>
                         </div>
-                        <div className="flex shrink-0 gap-2">
+                        <div className="flex shrink-0 gap-1.5 border-t border-gray-100 pt-2 sm:border-t-0 sm:pt-0 items-center">
                           <Link
                             to={`/groups/${groupId}/expenses/${exp.id}/edit`}
                             onClick={(e) => e.stopPropagation()}
-                            className="text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
+                            className="p-1.5 text-gray-500 hover:text-blue-650 hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
+                            title="Edit"
                           >
-                            Edit
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                            </svg>
                           </Link>
                           <button
                             disabled={delExpense.isPending}
@@ -454,9 +463,23 @@ export default function GroupDetailPage() {
                               if (confirm("Delete this expense?"))
                                 delExpense.mutate(exp.id);
                             }}
-                            className="text-sm text-red-500 hover:text-red-700 font-medium disabled:opacity-50 cursor-pointer"
+                            className="p-1.5 text-gray-500 hover:text-red-650 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
+                            title="Delete"
                           >
-                            Delete
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              strokeWidth={2}
+                              stroke="currentColor"
+                              className="w-4 h-4"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="m14.74 9-.346 9m-4.788 0L9 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+                              />
+                            </svg>
                           </button>
                         </div>
                       </li>
@@ -471,13 +494,13 @@ export default function GroupDetailPage() {
 
       {activeTab === "balances" && balanceData && (
         <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3 text-gray-900">Balances</h2>
-          <ul className="space-y-1.5 mb-4">
+          <h2 className="text-lg font-bold mb-4 text-gray-900">Balances</h2>
+          <ul className="space-y-3 mb-6">
             {balanceData.balances.map((b) => (
-              <li key={b.user_id} className="flex justify-between gap-3 text-sm border rounded p-2.5 bg-white shadow-xs">
-                <span className="min-w-0 break-words text-gray-700">{b.user_id === user?.id ? "You" : b.name}</span>
-                <span className={b.balance >= 0 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
-                  {b.balance > 0 ? "+" : ""}{formatCurrency(group.currency, b.balance)}
+              <li key={b.user_id} className="flex justify-between items-center gap-3 text-sm border border-gray-200 bg-white rounded-xl p-3.5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-gray-300">
+                <span className="min-w-0 break-words text-gray-700 font-medium">{b.user_id === user?.id ? "You" : b.name}</span>
+                <span className={`font-bold ${b.balance >= 0.005 ? "text-green-600" : b.balance < -0.005 ? "text-red-600" : "text-gray-500"}`}>
+                  {b.balance > 0.005 ? "+" : ""}{formatCurrency(group.currency, b.balance)}
                 </span>
               </li>
             ))}
@@ -485,19 +508,19 @@ export default function GroupDetailPage() {
 
           {balanceData.debts.length > 0 && (
             <>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Simplified debts</h3>
-              <ul className="space-y-1.5 mb-4">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 mt-6">Simplified debts</h3>
+              <ul className="space-y-3 mb-6">
                 {balanceData.debts.map((d, i) => (
-                  <li key={i} className="flex flex-col gap-2 text-sm border rounded p-2.5 bg-white shadow-xs sm:flex-row sm:items-center sm:justify-between">
+                  <li key={i} className="flex flex-col gap-3 text-sm border border-gray-200 bg-white rounded-xl p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between hover:shadow-md hover:border-gray-300 transition-all duration-200">
                     <span className="min-w-0 break-words text-gray-700">
-                      <span className="font-semibold text-gray-900">{d.from === user?.id ? "You" : d.from_name}</span>
+                      <span className="font-semibold text-gray-950">{d.from === user?.id ? "You" : d.from_name}</span>
                       {d.from === user?.id ? " owe " : " owes "}
-                      <span className="font-semibold text-gray-900">{d.to === user?.id ? "You" : d.to_name}</span>
-                      {" "}{formatCurrency(group.currency, d.amount)}
+                      <span className="font-semibold text-gray-950">{d.to === user?.id ? "You" : d.to_name}</span>
+                      {" "}<span className="font-bold text-gray-900">{formatCurrency(group.currency, d.amount)}</span>
                     </span>
                     {d.from === user?.id && (
                       settlePrompt?.to === d.to ? (
-                        <div className="flex flex-wrap items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-2 border-t border-gray-50 pt-2 sm:border-t-0 sm:pt-0">
                           <button
                             disabled={settle.isPending}
                             onClick={() => {
@@ -505,18 +528,18 @@ export default function GroupDetailPage() {
                               setSettlePrompt(null);
                               setCustomSettleAmount("");
                             }}
-                            className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 font-medium disabled:opacity-50 transition-colors cursor-pointer"
+                            className="text-xs bg-green-600 hover:bg-green-700 text-white px-2.5 py-1.5 rounded-lg font-semibold disabled:opacity-50 transition-colors cursor-pointer shadow-sm"
                           >
                             {settle.isPending ? "Paying..." : `Full (${formatCurrency(group.currency, d.amount)})`}
                           </button>
-                          <div className="flex min-w-0 items-center gap-1">
+                          <div className="flex min-w-0 items-center gap-1.5">
                             <input
                               type="number"
                               step="0.01"
                               placeholder="Amount"
                               value={customSettleAmount}
                               onChange={(e) => setCustomSettleAmount(e.target.value)}
-                              className="w-20 min-w-0 border rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className="w-20 min-w-0 border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all"
                             />
                             <button
                               disabled={settle.isPending}
@@ -528,14 +551,14 @@ export default function GroupDetailPage() {
                                   setCustomSettleAmount("");
                                 }
                               }}
-                              className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 font-medium disabled:opacity-50 transition-colors cursor-pointer"
+                              className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-lg font-semibold disabled:opacity-50 transition-colors cursor-pointer shadow-sm"
                             >
                               {settle.isPending ? "..." : "Pay"}
                             </button>
                           </div>
                           <button
                             onClick={() => { setSettlePrompt(null); setCustomSettleAmount(""); }}
-                            className="text-xs text-gray-400 hover:text-gray-600 px-1 font-medium cursor-pointer"
+                            className="text-xs text-gray-400 hover:text-gray-600 px-1 font-semibold cursor-pointer"
                           >
                             Cancel
                           </button>
@@ -543,7 +566,7 @@ export default function GroupDetailPage() {
                       ) : (
                         <button
                           onClick={() => setSettlePrompt({ to: d.to, amount: d.amount })}
-                          className="text-xs bg-green-600 text-white px-2.5 py-1 rounded hover:bg-green-700 font-semibold shadow-xs transition-colors cursor-pointer"
+                          className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg font-semibold shadow-sm transition-colors cursor-pointer"
                         >
                           Settle up
                         </button>
@@ -556,13 +579,13 @@ export default function GroupDetailPage() {
           )}
 
           {/* Manual settle */}
-          <div className="border rounded-lg p-4 bg-gray-50 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-800 mb-2">Record a payment</h3>
-            <div className="flex gap-2 flex-col sm:flex-row">
+          <div className="border border-gray-200 bg-white rounded-xl p-5 shadow-sm mt-6">
+            <h3 className="text-sm font-bold text-gray-900 mb-3.5">Record a payment</h3>
+            <div className="flex gap-3 flex-col sm:flex-row">
               <select
                 value={settleDirection}
                 onChange={(e) => setSettleDirection(e.target.value as "paid" | "received")}
-                className="w-full sm:w-36 border rounded px-2.5 py-1.5 text-sm bg-white cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full sm:w-44 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               >
                 <option value="paid">You paid</option>
                 <option value="received">You received from</option>
@@ -570,7 +593,7 @@ export default function GroupDetailPage() {
               <select
                 value={settleOtherId}
                 onChange={(e) => setSettleOtherId(Number(e.target.value))}
-                className="min-w-0 flex-1 border rounded px-2.5 py-1.5 text-sm bg-white cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="min-w-0 flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               >
                 <option value={0}>Select member...</option>
                 {members
@@ -587,7 +610,7 @@ export default function GroupDetailPage() {
                 placeholder="Amount"
                 value={settleAmount}
                 onChange={(e) => setSettleAmount(e.target.value)}
-                className="w-full min-w-0 border rounded px-2.5 py-1.5 text-sm sm:w-28 shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm sm:w-28 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
               />
               <button
                 disabled={settle.isPending}
@@ -601,7 +624,7 @@ export default function GroupDetailPage() {
                     }
                   }
                 }}
-                className="bg-green-600 text-white px-4 py-1.5 rounded text-sm hover:bg-green-700 font-semibold disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 transition-colors shadow-sm cursor-pointer shrink-0"
               >
                 {settle.isPending ? "Recording..." : "Record"}
               </button>
@@ -613,21 +636,21 @@ export default function GroupDetailPage() {
       {activeTab === "totals" && (
         <section className="mb-8 space-y-6">
           {/* Month Selector & Overall Stats */}
-          <div className="bg-white border rounded-lg p-5 shadow-xs space-y-4">
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Monthly Spending Totals</h2>
-                <p className="text-xs text-gray-500">Summary of total spends by the group and individual members.</p>
+                <h2 className="text-lg font-bold text-gray-900">Monthly Spending Totals</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Summary of total spends by the group and individual members.</p>
               </div>
               <div className="flex items-center gap-2">
-                <label htmlFor="totals-month-select" className="text-xs font-semibold text-gray-500 uppercase">
+                <label htmlFor="totals-month-select" className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                   Month:
                 </label>
                 <select
                   id="totals-month-select"
                   value={currentMonthKey}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="text-sm border rounded px-3 py-1.5 bg-white shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-gray-800 font-medium"
+                  className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer text-gray-800 font-semibold transition-all"
                 >
                   {availableMonths.map((m) => (
                     <option key={m} value={m}>
@@ -640,34 +663,34 @@ export default function GroupDetailPage() {
 
             <hr className="border-gray-100" />
 
-            <div className="py-4 text-center sm:text-left">
-              <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Group Spending</span>
-              <span className="block text-3xl font-bold text-gray-900 mt-1">
+            <div className="py-2 text-center sm:text-left">
+              <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Total Group Spending</span>
+              <span className="block text-3xl font-extrabold text-gray-900 mt-1">
                 {formatCurrency(group.currency, totalGroupSpend)}
               </span>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-gray-400 mt-1 font-medium">
                 For {getMonthLabel(currentMonthKey)} &middot; {monthlyExpenses.length} {monthlyExpenses.length === 1 ? "expense" : "expenses"}
               </p>
             </div>
           </div>
 
           {/* Individual Spends */}
-          <div className="bg-white border rounded-lg p-5 shadow-xs">
-            <h3 className="text-sm font-semibold text-gray-800 mb-4">Spends by Member</h3>
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-gray-900 mb-4">Spends by Member</h3>
             
             {totalGroupSpend === 0 ? (
-              <p className="text-gray-400 text-sm py-2">No spends recorded for this month.</p>
+              <p className="text-gray-400 text-xs italic py-2">No spends recorded for this month.</p>
             ) : (
-              <ul className="space-y-4">
+              <ul className="space-y-4.5">
                 {memberSpends.map((m) => {
                   const percentage = totalGroupSpend > 0 ? (m.amountPaid / totalGroupSpend) * 100 : 0;
                   return (
-                    <li key={m.user_id} className="space-y-1">
+                    <li key={m.user_id} className="space-y-1.5">
                       <div className="flex justify-between items-center text-sm gap-2">
-                        <span className="font-medium text-gray-700 truncate">
+                        <span className="font-semibold text-gray-700 truncate">
                           {m.user_id === user?.id ? "You" : m.name}
                         </span>
-                        <span className="font-semibold text-gray-900 shrink-0">
+                        <span className="font-bold text-gray-950 shrink-0">
                           {formatCurrency(group.currency, m.amountPaid)}
                         </span>
                       </div>
@@ -675,12 +698,12 @@ export default function GroupDetailPage() {
                       {/* CSS progress bar */}
                       <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
                         <div
-                          className="bg-blue-600 h-full rounded-full transition-all duration-500"
-                          style={{ width: `${percentage}%` }}
+                           className="bg-blue-600 h-full rounded-full transition-all duration-500"
+                           style={{ width: `${percentage}%` }}
                         />
                       </div>
                       
-                      <div className="flex justify-between text-xs text-gray-400">
+                      <div className="flex justify-between text-[10px] text-gray-400 font-semibold">
                         <span>
                           {percentage.toFixed(1)}% of total
                         </span>
@@ -700,18 +723,18 @@ export default function GroupDetailPage() {
       {activeTab === "settings" && (
         <section className="mb-8 space-y-6">
           {/* Group Preferences Card */}
-          <div className="bg-white border rounded-lg p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">Group Preferences</h3>
-            <div className="flex items-center justify-between gap-4 py-2">
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-gray-900 mb-3.5">Group Preferences</h3>
+            <div className="flex items-center justify-between gap-4 py-1">
               <div>
-                <span className="block text-sm font-medium text-gray-700">Group Currency</span>
-                <span className="text-xs text-gray-500">The currency used for calculating balances and new expenses.</span>
+                <span className="block text-sm font-semibold text-gray-700">Group Currency</span>
+                <span className="text-xs text-gray-400 mt-0.5 font-medium">The currency used for calculating balances and new expenses.</span>
               </div>
               {isAdmin ? (
                 <select
                   value={group.currency}
                   onChange={(e) => updateCurrency.mutate(e.target.value)}
-                  className="text-sm border rounded px-3 py-1.5 bg-white shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition-all"
                 >
                   <option value="INR">INR</option>
                   <option value="USD">USD</option>
@@ -719,56 +742,56 @@ export default function GroupDetailPage() {
                   <option value="GBP">GBP</option>
                 </select>
               ) : (
-                <span className="text-sm font-semibold text-gray-800">{group.currency}</span>
+                <span className="text-sm font-bold text-gray-800 bg-gray-100 px-2.5 py-1 rounded-lg">{group.currency}</span>
               )}
             </div>
           </div>
 
           {/* Members Management Card */}
-          <div className="bg-white border rounded-lg p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">Members ({members.length})</h3>
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-gray-900 mb-3.5">Members ({members.length})</h3>
 
-            <form onSubmit={handleAddMember} className="flex flex-col gap-2 mb-4 sm:flex-row">
+            <form onSubmit={handleAddMember} className="flex flex-col gap-2.5 mb-4 sm:flex-row">
               <input
                 type="email"
                 placeholder="Add member by email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="min-w-0 flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="min-w-0 flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all"
                 required
               />
               <button
                 type="submit"
                 disabled={add.isPending}
-                className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors font-semibold shadow-sm cursor-pointer"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-all font-semibold shadow-sm cursor-pointer shrink-0"
               >
                 {add.isPending ? "Adding..." : "Add"}
               </button>
             </form>
-            {error && <p className="text-red-600 text-sm mb-2">{error}</p>}
+            {error && <p className="text-red-600 text-xs font-semibold mb-3">{error}</p>}
 
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               {members.map((m) => (
                 <li
                   key={m.user_id}
-                  className="flex items-center justify-between gap-3 border rounded p-3 bg-gray-50"
+                  className="flex items-center justify-between gap-3 border border-gray-200 bg-white rounded-xl p-3.5 shadow-2xs hover:shadow-xs transition-all"
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm text-gray-900 break-words">{m.user_id === user?.id ? "You" : m.name}</span>
+                      <span className="font-semibold text-sm text-gray-900 break-words">{m.user_id === user?.id ? "You" : m.name}</span>
                       {m.role === "admin" && (
-                        <span className="text-xs bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 font-semibold">
+                        <span className="text-[10px] bg-blue-50 border border-blue-100 text-blue-700 rounded px-1.5 py-0.5 font-bold uppercase tracking-wider">
                           admin
                         </span>
                       )}
                     </div>
-                    <span className="block break-all text-gray-500 text-xs mt-0.5">{m.email}</span>
+                    <span className="block break-all text-gray-400 text-xs mt-1 font-medium">{m.email}</span>
                   </div>
                   {isAdmin && m.user_id !== user?.id && (
                     <button
                       disabled={remove.isPending}
                       onClick={() => remove.mutate(m.user_id)}
-                      className="shrink-0 text-sm text-red-600 hover:text-red-800 font-semibold disabled:opacity-50 cursor-pointer"
+                      className="shrink-0 text-xs text-red-600 hover:text-red-800 font-bold disabled:opacity-50 cursor-pointer"
                     >
                       Remove
                     </button>
@@ -780,9 +803,9 @@ export default function GroupDetailPage() {
 
           {/* Danger Zone Card */}
           {isAdmin && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 shadow-sm">
-              <h3 className="text-sm font-semibold text-red-800 mb-1.5">Danger Zone</h3>
-              <p className="text-xs text-red-600 mb-4">
+            <div className="bg-red-50/50 border border-red-200 rounded-xl p-5 shadow-sm">
+              <h3 className="text-sm font-bold text-red-800 mb-1.5">Danger Zone</h3>
+              <p className="text-xs text-red-600 mb-4 leading-relaxed font-medium">
                 Deleting this group is permanent. All expenses, balances, and history will be permanently deleted.
               </p>
               <button
@@ -790,7 +813,7 @@ export default function GroupDetailPage() {
                 onClick={() => {
                   if (confirm("Delete this group?")) del.mutate();
                 }}
-                className="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700 font-semibold disabled:opacity-50 shadow-sm transition-colors cursor-pointer"
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 shadow-sm transition-colors cursor-pointer"
               >
                 {del.isPending ? "Deleting..." : "Delete group"}
               </button>

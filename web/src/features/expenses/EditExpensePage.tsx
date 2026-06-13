@@ -164,9 +164,28 @@ export default function EditExpensePage() {
   const currencySymbol = currencySymbols[groupData.group.currency] || "₹";
 
   return (
-    <div className="max-w-lg mx-auto">
+    <div className="max-w-lg mx-auto px-1 sm:px-0">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Edit Expense</h1>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate(`/groups/${groupId}`)}
+            className="inline-flex items-center justify-center p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
+            aria-label="Back"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2.5}
+              stroke="currentColor"
+              className="w-5 h-5"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+            </svg>
+          </button>
+          <h1 className="text-2xl font-bold text-gray-900">Edit Expense</h1>
+        </div>
         <button
           type="submit"
           form="edit-expense-form"
@@ -190,39 +209,55 @@ export default function EditExpensePage() {
           )}
         </button>
       </div>
-      <form id="edit-expense-form" onSubmit={handleSubmit} className="space-y-4">
-        {error && <p className="text-red-600 text-sm">{error}</p>}
 
-        <input
-          type="number"
-          step="0.01"
-          placeholder="Amount"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          required
-          className="w-full border rounded px-3 py-2"
-        />
-        <input
-          type="text"
-          placeholder="Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="w-full border rounded px-3 py-2"
-        />
-        <input
-          type="date"
-          value={date}
-          max={new Date().toISOString().split("T")[0]}
-          onChange={(e) => setDate(e.target.value)}
-          className="w-full border rounded px-3 py-2"
-        />
+      <form
+        id="edit-expense-form"
+        onSubmit={handleSubmit}
+        className="bg-white border border-gray-200 rounded-xl p-5 sm:p-6 shadow-sm space-y-5"
+      >
+        {error && <p className="text-red-600 text-xs font-semibold">{error}</p>}
 
         <div>
-          <label className="text-sm font-medium text-gray-700">Paid by</label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Amount</label>
+          <input
+            type="number"
+            step="any"
+            placeholder="0.00"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Description</label>
+          <input
+            type="text"
+            placeholder="e.g. Dinner, Groceries"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Date</label>
+          <input
+            type="date"
+            value={date}
+            max={new Date().toISOString().split("T")[0]}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 cursor-pointer"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Paid by</label>
           <select
             value={paidBy}
             onChange={(e) => setPaidBy(Number(e.target.value))}
-            className="w-full border rounded px-3 py-2 mt-1"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 cursor-pointer"
           >
             {members.map((m: GroupMember) => (
               <option key={m.user_id} value={m.user_id}>
@@ -233,19 +268,17 @@ export default function EditExpensePage() {
         </div>
 
         <div>
-          <label className="text-sm font-medium text-gray-700">
-            Split type
-          </label>
-          <div className="flex flex-wrap gap-2 mt-1">
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Split type</label>
+          <div className="flex flex-wrap gap-2">
             {(["equal", "exact", "percentage", "shares"] as const).map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setSplitType(t)}
-                className={`px-3 py-1 rounded text-sm ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
                   splitType === t
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-700"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
                 {splitTypeLabels[t]}
@@ -254,39 +287,43 @@ export default function EditExpensePage() {
           </div>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-700">
-              Split among
-            </label>
+        <div className="border-t border-gray-100 pt-4">
+          <div className="flex items-center justify-between mb-3">
+            <label className="block text-xs font-semibold text-gray-500">Split among</label>
             <button
               type="button"
               onClick={toggleAllMembers}
-              className="text-sm text-blue-600 hover:text-blue-700"
+              className="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
             >
-              {selectedMembers.length === members.length
-                ? "Unselect all"
-                : "Select all"}
+              {selectedMembers.length === members.length ? "Unselect all" : "Select all"}
             </button>
           </div>
-          <div className="space-y-2 mt-1">
+
+          <div className="space-y-1">
             {members.map((m: GroupMember) => (
-              <div key={m.user_id} className="flex items-center gap-2">
+              <div
+                key={m.user_id}
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50/50 transition-colors"
+              >
                 <input
                   type="checkbox"
                   checked={selectedMembers.includes(m.user_id)}
                   onChange={() => toggleMember(m.user_id)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 transition-all cursor-pointer"
                 />
-                <span className="min-w-0 flex-1 break-words">{m.user_id === user?.id ? "You" : m.name}</span>
+                <span className="min-w-0 flex-1 break-words text-sm text-gray-700 font-medium">
+                  {m.user_id === user?.id ? "You" : m.name}
+                </span>
+
                 {splitType === "exact" && selectedMembers.includes(m.user_id) && (
-                  <div className="flex w-28 items-center rounded border bg-white text-sm">
-                    <span className="pl-2 text-gray-500">
+                  <div className="flex w-28 items-center rounded-lg border border-gray-300 bg-white text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
+                    <span className="pl-2.5 text-gray-400 font-semibold select-none">
                       {currencySymbol}
                     </span>
                     <input
                       type="number"
-                      step="1"
-                      placeholder="Amount"
+                      step="any"
+                      placeholder="0.00"
                       value={exactAmounts[m.user_id] || ""}
                       onChange={(e) =>
                         setExactAmounts((p) => ({
@@ -294,65 +331,63 @@ export default function EditExpensePage() {
                           [m.user_id]: e.target.value,
                         }))
                       }
-                      className="min-w-0 flex-1 px-1 py-1 outline-none"
+                      className="min-w-0 flex-1 px-2 py-1 outline-none text-right text-sm rounded-r-lg"
                     />
                   </div>
                 )}
-                {splitType === "percentage" &&
-                  selectedMembers.includes(m.user_id) && (
-                    <div className="flex w-24 items-center rounded border bg-white text-sm">
-                      <input
-                        type="number"
-                        step="0.1"
-                        placeholder="0"
-                        value={percentages[m.user_id] || ""}
-                        onChange={(e) =>
-                          setPercentages((p) => ({
-                            ...p,
-                            [m.user_id]: e.target.value,
-                          }))
-                        }
-                        className="min-w-0 flex-1 px-2 py-1 outline-none"
-                      />
-                      <span className="pr-2 text-gray-500">%</span>
-                    </div>
-                  )}
-                {splitType === "shares" &&
-                  selectedMembers.includes(m.user_id) && (
-                    <div className="flex w-32 items-center rounded border bg-white text-sm">
-                      <input
-                        type="number"
-                        step="0.1"
-                        placeholder="1"
-                        value={shares[m.user_id] || ""}
-                        onChange={(e) =>
-                          setShares((p) => ({
-                            ...p,
-                            [m.user_id]: e.target.value,
-                          }))
-                        }
-                        className="min-w-0 flex-1 px-2 py-1 outline-none"
-                      />
-                      <span className="pr-2 text-gray-500">share(s)</span>
-                    </div>
-                  )}
+                {splitType === "percentage" && selectedMembers.includes(m.user_id) && (
+                  <div className="flex w-24 items-center rounded-lg border border-gray-300 bg-white text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="0"
+                      value={percentages[m.user_id] || ""}
+                      onChange={(e) =>
+                        setPercentages((p) => ({
+                          ...p,
+                          [m.user_id]: e.target.value,
+                        }))
+                      }
+                      className="min-w-0 flex-1 px-2.5 py-1 outline-none text-right text-sm rounded-l-lg"
+                    />
+                    <span className="pr-2.5 text-gray-400 font-semibold select-none">%</span>
+                  </div>
+                )}
+                {splitType === "shares" && selectedMembers.includes(m.user_id) && (
+                  <div className="flex w-32 items-center rounded-lg border border-gray-300 bg-white text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="1"
+                      value={shares[m.user_id] || ""}
+                      onChange={(e) =>
+                        setShares((p) => ({
+                          ...p,
+                          [m.user_id]: e.target.value,
+                        }))
+                      }
+                      className="min-w-0 flex-1 px-2.5 py-1 outline-none text-right text-sm rounded-l-lg"
+                    />
+                    <span className="pr-2.5 text-gray-400 font-semibold select-none text-xs">shares</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row border-t border-gray-100 pt-4">
           <button
             type="submit"
             disabled={update.isPending}
-            className="hidden sm:block flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+            className="hidden sm:block flex-1 bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all duration-200 cursor-pointer shadow-sm font-semibold text-sm"
           >
             {update.isPending ? "Saving..." : "Save Changes"}
           </button>
           <button
             type="button"
             onClick={() => navigate(`/groups/${groupId}`)}
-            className="flex-1 border py-2 rounded hover:bg-gray-50"
+            className="flex-1 border border-gray-300 py-2.5 rounded-lg hover:bg-gray-50 transition-all duration-200 cursor-pointer text-gray-700 font-medium text-sm text-center"
           >
             Cancel
           </button>
