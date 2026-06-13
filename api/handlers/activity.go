@@ -35,7 +35,7 @@ func (h *ActivityHandler) List(c *gin.Context) {
 	err = h.DB.Select(&activity,
 		`SELECT ga.id, ga.group_id, ga.expense_id, ga.user_id, u.name AS user_name,
 		        ga.action, ga.summary, ga.created_at, ''::text AS group_name,
-		        false AS is_involved
+		        false AS is_involved, false AS is_new
 		 FROM group_activity ga
 		 JOIN users u ON u.id = ga.user_id
 		 WHERE ga.group_id = $1
@@ -78,7 +78,8 @@ func (h *ActivityHandler) ListUser(c *gin.Context) {
 	                 EXISTS (
 	                   SELECT 1 FROM group_activity_participants gap
 	                   WHERE gap.activity_id = ga.id AND gap.user_id = $1
-	                 ) AS is_involved
+	                 ) AS is_involved,
+	                 (ga.created_at > (SELECT last_activity_read_at FROM users WHERE id = $1)) AS is_new
 	          FROM group_activity ga
 	          JOIN group_members gm ON gm.group_id = ga.group_id AND gm.user_id = $1
 	          JOIN groups g ON g.id = ga.group_id
@@ -146,4 +147,30 @@ func decodeActivityCursor(cursor string) (time.Time, int, error) {
 		return time.Time{}, 0, err
 	}
 	return createdAt, id, nil
+}
+
+func (h *ActivityHandler) MarkRead(c *gin.Context) {
+	userID := c.GetInt("userID")
+	_, err := h.DB.Exec("UPDATE users SET last_activity_read_at = NOW() WHERE id = $1", userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark activity as read"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func (h *ActivityHandler) UnreadCount(c *gin.Context) {
+	userID := c.GetInt("userID")
+	var count int
+	err := h.DB.Get(&count, `
+		SELECT COUNT(*)
+		FROM group_activity ga
+		JOIN group_members gm ON gm.group_id = ga.group_id AND gm.user_id = $1
+		WHERE ga.created_at > (SELECT last_activity_read_at FROM users WHERE id = $1)
+	`, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get unread count"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"unread_count": count})
 }

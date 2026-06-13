@@ -9,4 +9,5 @@ type User struct {
 	Name         string    `db:"name" json:"name"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at" json:"updated_at"`
+	LastActivityReadAt time.Time `db:"last_activity_read_at" json:"last_activity_read_at"`
 }

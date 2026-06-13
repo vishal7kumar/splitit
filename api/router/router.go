@@ -46,6 +46,8 @@ func Setup(db *sqlx.DB) *gin.Engine {
 			activity := &handlers.ActivityHandler{DB: db}
 			protected.GET("/groups/:id/activity", activity.List)
 			protected.GET("/user/activity", activity.ListUser)
+			protected.POST("/user/activity/read", activity.MarkRead)
+			protected.GET("/user/activity/unread-count", activity.UnreadCount)
 
 			balances := &handlers.BalanceHandler{DB: db}
 			protected.GET("/groups/:id/balances", balances.GroupBalances)

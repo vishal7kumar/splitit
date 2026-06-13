@@ -10,6 +10,8 @@ import GroupDetailPage from "../features/groups/GroupDetailPage";
 import AddExpensePage from "../features/expenses/AddExpensePage";
 import EditExpensePage from "../features/expenses/EditExpensePage";
 import ExpenseDetailPage from "../features/expenses/ExpenseDetailPage";
+import FriendsPage from "../features/friends/FriendsPage";
+import ActivityPage from "../features/activity/ActivityPage";
 
 function ProtectedLayout() {
   const { user, isLoading } = useAuth();
@@ -39,6 +41,8 @@ export function AppRouter() {
         </Route>
         <Route element={<ProtectedLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/friends" element={<FriendsPage />} />
+          <Route path="/activity" element={<ActivityPage />} />
           <Route path="/groups" element={<GroupListPage />} />
           <Route path="/groups/:id" element={<GroupDetailPage />} />
           <Route path="/groups/:id/add" element={<AddExpensePage />} />

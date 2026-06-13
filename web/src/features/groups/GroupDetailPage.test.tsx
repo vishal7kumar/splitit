@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import GroupDetailPage from "./GroupDetailPage";
+import { getGroupBalances } from "../../api/settlements";
 
 vi.mock("../auth/useAuth", () => ({
   useAuth: () => ({ user: { id: 1, name: "Admin", email: "admin@test.com" } }),
@@ -147,5 +148,20 @@ describe("GroupDetailPage", () => {
     // Verify member breakdown shows "You" paid 100 INR
     expect(screen.getByText("You")).toBeInTheDocument();
     expect(screen.getByText("100.0% of total")).toBeInTheDocument();
+  });
+
+  it("renders the logged-in user's group balance in the header", async () => {
+    vi.mocked(getGroupBalances).mockResolvedValueOnce({
+      balances: [
+        { user_id: 1, name: "Admin", balance: 120.50 },
+      ],
+      debts: [],
+    });
+
+    renderWithProviders();
+
+    expect(await screen.findByText("Your balance:")).toBeInTheDocument();
+    expect(screen.getByText(/120.50/)).toBeInTheDocument();
+    expect(screen.getByText("(others owe you)")).toBeInTheDocument();
   });
 });

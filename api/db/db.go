@@ -131,6 +131,7 @@ func Migrate(db *sqlx.DB) error {
 		 FROM group_activity ga
 		 JOIN expense_splits es ON es.expense_id = ga.expense_id
 		 ON CONFLICT DO NOTHING`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_activity_read_at TIMESTAMPTZ NOT NULL DEFAULT NOW() - INTERVAL '1 year'`,
 	}
 	for _, m := range migrations {
 		db.Exec(m) // ignore errors for already-applied migrations

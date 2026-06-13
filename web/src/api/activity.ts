@@ -11,6 +11,7 @@ export interface GroupActivity {
   summary: string;
   created_at: string;
   is_involved?: boolean;
+  is_new?: boolean;
 }
 
 export interface UserActivityPage {
@@ -37,4 +38,12 @@ export function listUserActivity({
       },
     })
     .then((r) => r.data);
+}
+
+export function markActivityAsRead(): Promise<{ status: string }> {
+  return api.post("/api/user/activity/read").then((r) => r.data);
+}
+
+export function getUnreadActivityCount(): Promise<{ unread_count: number }> {
+  return api.get("/api/user/activity/unread-count").then((r) => r.data);
 }

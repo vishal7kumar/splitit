@@ -178,6 +178,12 @@ export default function GroupDetailPage() {
     }).sort((a, b) => b.amountPaid - a.amountPaid);
   }, [data, monthlyExpenses]);
 
+  const myBalance = useMemo(() => {
+    if (!balanceData || !balanceData.balances || !user) return 0;
+    const myEntry = balanceData.balances.find((b: any) => b.user_id === user.id);
+    return myEntry ? myEntry.balance : 0;
+  }, [balanceData, user]);
+
   function handleAddMember(e: FormEvent) {
     e.preventDefault();
     if (email.trim()) add.mutate(email.trim());
@@ -190,7 +196,9 @@ export default function GroupDetailPage() {
   const { group, members } = data;
   const currentMember = members.find((m) => m.user_id === user?.id);
   const isAdmin = currentMember?.role === "admin";
-  const memberMap = Object.fromEntries(members.map((m) => [m.user_id, m]));  return (
+  const memberMap = Object.fromEntries(members.map((m) => [m.user_id, m]));
+
+  return (
     <div className="max-w-2xl mx-auto">
       {/* Back to Groups Link */}
       <div className="mb-4">
@@ -220,8 +228,35 @@ export default function GroupDetailPage() {
       <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="break-words text-2xl font-bold text-gray-900">{group.name}</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Currency: <span className="font-semibold text-gray-700">{group.currency}</span>
+          <p className="text-sm text-gray-500 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>Currency: <span className="font-semibold text-gray-700">{group.currency}</span></span>
+            {balanceData && (
+              <>
+                <span className="text-gray-300 sm:inline hidden">|</span>
+                <span>
+                  Your balance:{" "}
+                  <span
+                    className={`font-bold ${
+                      myBalance > 0.005
+                        ? "text-green-600"
+                        : myBalance < -0.005
+                          ? "text-red-600"
+                          : "text-gray-500"
+                    }`}
+                  >
+                    {myBalance > 0.005 ? "+" : ""}
+                    {formatCurrency(group.currency, myBalance)}
+                  </span>
+                  <span className="text-xs text-gray-400 font-normal ml-1">
+                    {myBalance > 0.005
+                      ? "(others owe you)"
+                      : myBalance < -0.005
+                        ? "(you owe others)"
+                        : "(settled up)"}
+                  </span>
+                </span>
+              </>
+            )}
           </p>
         </div>
         <div className="flex items-center">
@@ -235,12 +270,12 @@ export default function GroupDetailPage() {
       </div>
 
       {/* Navigation tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-6 sm:space-x-8" aria-label="Tabs">
+      <div className="border-b border-gray-200 mb-6 overflow-x-auto overflow-y-hidden scrollbar-none">
+        <nav className="-mb-px flex space-x-4 sm:space-x-8 pb-0.5" aria-label="Tabs">
           <button
             onClick={() => setActiveTab("expenses")}
             className={`
-              flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer
+              flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer shrink-0
               ${activeTab === "expenses"
                 ? "border-blue-600 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -266,7 +301,7 @@ export default function GroupDetailPage() {
           <button
             onClick={() => setActiveTab("balances")}
             className={`
-              flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer
+              flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer shrink-0
               ${activeTab === "balances"
                 ? "border-blue-600 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -292,7 +327,7 @@ export default function GroupDetailPage() {
           <button
             onClick={() => setActiveTab("totals")}
             className={`
-              flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer
+              flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer shrink-0
               ${activeTab === "totals"
                 ? "border-blue-600 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -323,7 +358,7 @@ export default function GroupDetailPage() {
           <button
             onClick={() => setActiveTab("settings")}
             className={`
-              flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer
+              flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer shrink-0
               ${activeTab === "settings"
                 ? "border-blue-600 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"

@@ -1,273 +1,174 @@
 import { Link } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../auth/useAuth";
 import { getTotalBalance } from "../../api/settlements";
-import { listFriends, settleFriend } from "../../api/friends";
-import { listUserActivity } from "../../api/activity";
+import { createGroup } from "../../api/groups";
 import { formatCurrency } from "../../lib/currency";
-import { formatDate } from "../../lib/formatDate";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [openFriendId, setOpenFriendId] = useState<number | null>(null);
-  const activityLoadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  const { data } = useQuery({
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupCurrency, setNewGroupCurrency] = useState("INR");
+  const [createError, setCreateError] = useState("");
+
+  const { data, isLoading } = useQuery({
     queryKey: ["total-balance"],
     queryFn: getTotalBalance,
   });
 
-  const { data: friends = [] } = useQuery({
-    queryKey: ["friends"],
-    queryFn: listFriends,
-  });
-
-  const {
-    data: activityPages,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfiniteQuery({
-    queryKey: ["user-activity"],
-    queryFn: ({ pageParam }) => listUserActivity({ limit: 20, cursor: pageParam }),
-    initialPageParam: "",
-    getNextPageParam: (lastPage) => lastPage.next_cursor || undefined,
-  });
-
-  useEffect(() => {
-    const node = activityLoadMoreRef.current;
-    if (!node || !hasNextPage) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      },
-      { rootMargin: "160px" }
-    );
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
-
-  const settle = useMutation({
-    mutationFn: (friendId: number) => settleFriend(friendId),
+  const create = useMutation({
+    mutationFn: ({ name, currency }: { name: string; currency: string }) =>
+      createGroup(name, currency),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["friends"] });
       queryClient.invalidateQueries({ queryKey: ["total-balance"] });
-      queryClient.invalidateQueries({ queryKey: ["balances"] });
-      queryClient.invalidateQueries({ queryKey: ["settlements"] });
-      queryClient.invalidateQueries({ queryKey: ["user-activity"] });
+      setNewGroupName("");
+      setCreateError("");
+      setShowCreateForm(false);
+    },
+    onError: (err: Error & { response?: { data?: { error?: string } } }) => {
+      setCreateError(err.response?.data?.error || "Failed to create group");
     },
   });
 
-  const activity = activityPages?.pages.flatMap((page) => page.items) || [];
-  const activityText = (summary: string, actorName: string) =>
-    summary.startsWith(actorName) ? summary.slice(actorName.length).trim() : summary;
+  function handleCreateGroup(e: React.FormEvent) {
+    e.preventDefault();
+    if (newGroupName.trim()) {
+      create.mutate({ name: newGroupName.trim(), currency: newGroupCurrency });
+    }
+  }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
-      <p className="mt-2 text-gray-600 mb-6">
+    <div className="max-w-2xl mx-auto px-1 sm:px-0">
+      <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+      <p className="mt-1 text-sm text-gray-500 mb-6">
         Welcome back, {user?.name || user?.email}!
       </p>
 
-      {data && (
+      {isLoading ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500 text-sm">Loading dashboard details...</p>
+        </div>
+      ) : (
         <>
-          <div className="border rounded p-4 mb-6">
-            <p className="text-sm text-gray-500">Overall balance</p>
-            <p
-              className={`text-3xl font-bold ${
-                data.total_balance >= 0 ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {data.total_balance >= 0 ? "+" : ""}
-              {formatCurrency(data.groups[0]?.currency || "INR", data.total_balance)}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              {data.total_balance > 0
-                ? "Others owe you overall"
-                : data.total_balance < 0
-                  ? "You owe others overall"
-                  : "All settled up!"}
-            </p>
-          </div>
-
+          {/* Groups Section (at the top) */}
           <section className="mb-6">
-            <h2 className="text-lg font-semibold mb-3">Friends</h2>
-            {friends.length === 0 ? (
-              <p className="text-gray-400 text-sm border rounded p-3">
-                No shared group members yet.
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {friends.map((friend) => {
-                  const isOpen = openFriendId === friend.user_id;
-                  const hasBalance = Math.abs(friend.total_balance) > 0.01;
-                  const currency = friend.groups[0]?.currency || data.groups[0]?.currency || "INR";
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Groups</h2>
+              <button
+                type="button"
+                onClick={() => setShowCreateForm(!showCreateForm)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm transition-all duration-200 cursor-pointer"
+              >
+                {showCreateForm ? "Cancel" : "+ New Group"}
+              </button>
+            </div>
 
-                  return (
-                    <li key={friend.user_id} className="border rounded">
-                      <button
-                        type="button"
-                        onClick={() => setOpenFriendId(isOpen ? null : friend.user_id)}
-                        className="flex w-full flex-col gap-2 p-3 text-left hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <span className="min-w-0">
-                          <span className="block font-medium break-words">
-                            {friend.name || friend.email}
-                          </span>
-                          <span className="block text-sm text-gray-400 break-all">
-                            {friend.email}
-                          </span>
-                        </span>
-                        <span
-                          className={`font-medium ${
-                            friend.total_balance >= 0 ? "text-green-600" : "text-red-600"
-                          }`}
-                        >
-                          {friend.total_balance > 0 ? "+" : ""}
-                          {formatCurrency(currency, friend.total_balance)}
-                        </span>
-                      </button>
-
-                      {isOpen && (
-                        <div className="border-t bg-gray-50 p-3">
-                          {friend.groups.length === 0 ? (
-                            <p className="text-sm text-gray-500">All settled up.</p>
-                          ) : (
-                            <ul className="space-y-1">
-                              {friend.groups.map((group) => (
-                                <li
-                                  key={group.group_id}
-                                  className="flex items-center justify-between gap-3 text-sm"
-                                >
-                                  <Link
-                                    to={`/groups/${group.group_id}`}
-                                    className="min-w-0 break-words text-blue-600 hover:text-blue-800"
-                                  >
-                                    {group.name}
-                                  </Link>
-                                  <span
-                                    className={`shrink-0 font-medium ${
-                                      group.balance >= 0 ? "text-green-600" : "text-red-600"
-                                    }`}
-                                  >
-                                    {group.balance > 0 ? "+" : ""}
-                                    {formatCurrency(group.currency, group.balance)}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                          {hasBalance && (
-                            <button
-                              type="button"
-                              disabled={settle.isPending}
-                              onClick={() => settle.mutate(friend.user_id)}
-                              className="mt-3 bg-green-600 text-white px-3 py-1.5 rounded text-sm hover:bg-green-700 disabled:opacity-50"
-                            >
-                              {settle.isPending ? "Settling..." : "Settle up"}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-
-          {data.groups.length > 0 && (
-            <section className="mb-6">
-              <h2 className="text-lg font-semibold mb-3">Per group</h2>
-              <ul className="space-y-2">
-                {data.groups.map((g) => (
-                  <li key={g.group_id}>
-                    <Link
-                      to={`/groups/${g.group_id}`}
-                      className="flex items-center justify-between border rounded p-3 hover:bg-gray-50"
+            {showCreateForm && (
+              <form
+                onSubmit={handleCreateGroup}
+                className="bg-white border border-gray-200 rounded-xl p-4 mb-4 shadow-sm"
+              >
+                <h3 className="text-sm font-bold text-gray-900 mb-3">Create a new group</h3>
+                {createError && <p className="text-red-600 text-xs mb-3">{createError}</p>}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                  <div className="flex-1">
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">Group Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Apartment, Trip to Goa"
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  <div className="w-full sm:w-28">
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">Currency</label>
+                    <select
+                      value={newGroupCurrency}
+                      onChange={(e) => setNewGroupCurrency(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                     >
-                      <div>
-                        <span className="font-medium">{g.name}</span>
-                        <span className="text-xs bg-gray-100 text-gray-600 rounded px-1.5 py-0.5 ml-2">
-                          {g.currency}
-                        </span>
-                      </div>
+                      <option value="INR">INR</option>
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="GBP">GBP</option>
+                    </select>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={create.isPending}
+                    className="w-full sm:w-auto bg-blue-600 text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+                  >
+                    {create.isPending ? "Creating..." : "Create"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {(!data || data.groups.length === 0) ? (
+              <div className="bg-white border border-dashed border-gray-300 rounded-xl p-6 text-center">
+                <p className="text-gray-500 text-sm mb-1">No groups yet.</p>
+                <p className="text-gray-400 text-xs">Create a group using the button above to start splitting expenses!</p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {data.groups.map((g) => (
+                  <Link
+                    key={g.group_id}
+                    to={`/groups/${g.group_id}`}
+                    className="flex items-center justify-between border border-gray-200 bg-white rounded-xl p-4 hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-pointer"
+                  >
+                    <div className="min-w-0 mr-3">
+                      <span className="font-semibold text-gray-900 block truncate">{g.name}</span>
+                      <span className="inline-block mt-1 text-[10px] bg-gray-100 text-gray-600 rounded px-1.5 py-0.5 font-medium uppercase tracking-wider">
+                        {g.currency}
+                      </span>
+                    </div>
+                    <div className="text-right shrink-0">
                       <span
-                        className={`font-medium ${
-                          g.balance >= 0 ? "text-green-600" : "text-red-600"
+                        className={`font-bold text-sm block ${
+                          g.balance > 0.005 ? "text-green-600" : g.balance < -0.005 ? "text-red-600" : "text-gray-500"
                         }`}
                       >
-                        {g.balance > 0 ? "+" : ""}
+                        {g.balance > 0.005 ? "+" : ""}
                         {formatCurrency(g.currency, g.balance)}
                       </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          <section>
-            <h2 className="text-lg font-semibold mb-3">Recent activity</h2>
-            {activity.length === 0 ? (
-              <p className="text-gray-400 text-sm border rounded p-3">
-                No activity yet.
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {activity.map((item) => {
-                  const content = (
-                    <div className="break-words text-sm text-gray-600">
-                      {!item.is_involved && (
-                        <span className="mb-1 inline-block rounded bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                          You were not involved
-                        </span>
-                      )}
-                      <div>
-                        <span className="font-medium">
-                          {item.user_id === user?.id ? "You" : item.user_name}
-                        </span>{" "}
-                        <span>{activityText(item.summary, item.user_name)}</span>
-                      </div>
-                      <div className="mt-1 text-xs text-gray-400">
-                        {item.group_name || "Group"} &middot; {formatDate(item.created_at)}
-                      </div>
+                      <span className="text-[10px] text-gray-400 block mt-0.5">
+                        {g.balance > 0.005 ? "you are owed" : g.balance < -0.005 ? "you owe" : "settled up"}
+                      </span>
                     </div>
-                  );
-
-                  return (
-                    <li key={item.id}>
-                      {item.expense_id ? (
-                        <Link
-                          to={`/groups/${item.group_id}/expenses/${item.expense_id}`}
-                          className="block border rounded p-3 hover:bg-gray-50"
-                        >
-                          {content}
-                        </Link>
-                      ) : (
-                        <Link
-                          to={`/groups/${item.group_id}`}
-                          className="block border rounded p-3 hover:bg-gray-50"
-                        >
-                          {content}
-                        </Link>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            <div ref={activityLoadMoreRef} className="h-6" />
-            {isFetchingNextPage && (
-              <p className="text-center text-xs text-gray-400">Loading more...</p>
+                  </Link>
+                ))}
+              </div>
             )}
           </section>
+
+          {/* Overall Balance Summary Card */}
+          {data && (
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Overall Balance</p>
+              <p
+                className={`text-3xl font-extrabold mt-1 ${
+                  data.total_balance > 0.005 ? "text-green-600" : data.total_balance < -0.005 ? "text-red-600" : "text-gray-600"
+                }`}
+              >
+                {data.total_balance > 0.005 ? "+" : ""}
+                {formatCurrency(data.groups[0]?.currency || "INR", data.total_balance)}
+              </p>
+              <p className="text-xs text-gray-400 mt-2 font-medium">
+                {data.total_balance > 0.005
+                  ? "Others owe you overall across all groups"
+                  : data.total_balance < -0.005
+                    ? "You owe others overall across all groups"
+                    : "You are all settled up everywhere! 🎉"}
+              </p>
+            </div>
+          )}
         </>
       )}
     </div>

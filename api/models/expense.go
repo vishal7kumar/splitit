@@ -51,4 +51,5 @@ type GroupActivity struct {
 	Summary    string    `db:"summary" json:"summary"`
 	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 	IsInvolved bool      `db:"is_involved" json:"is_involved"`
+	IsNew      bool      `db:"is_new" json:"is_new"`
 }

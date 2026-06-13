@@ -168,3 +168,71 @@ func TestDeletedExpenseActivityKeepsParticipantInvolvement(t *testing.T) {
 	}
 	t.Fatalf("expected delete activity in member feed: %#v", page.Items)
 }
+
+func TestActivityReadAndUnreadCount(t *testing.T) {
+	database := setupTestDB(t)
+	r := setupRouter(database)
+
+	adminCookies := registerAndLogin(r, "activity-read-admin@test.com", "pass123", "Admin")
+
+	// Initially unread count should be 0
+	w := doJSON(r, "GET", "/api/user/activity/unread-count", nil, adminCookies...)
+	assertStatus(t, w, http.StatusOK)
+	var resp map[string]interface{}
+	decodeJSON(t, w, &resp)
+	if resp["unread_count"].(float64) != 0 {
+		t.Fatalf("expected 0 unread activity items, got %.0f", resp["unread_count"].(float64))
+	}
+
+	groupID := createGroup(t, r, adminCookies, "Read Group")
+	detail := getGroupDetail(t, r, adminCookies, groupID)
+	adminID := memberIDByEmail(t, detail, "activity-read-admin@test.com")
+
+	// Create an expense to generate activity
+	createExpense(t, r, adminCookies, groupID, map[string]interface{}{
+		"amount":      30.0,
+		"description": "Admin tea",
+		"paid_by":     adminID,
+		"split_type":  "equal",
+		"splits":      []map[string]interface{}{{"user_id": adminID}},
+	})
+
+	// Unread count should now be 1
+	w = doJSON(r, "GET", "/api/user/activity/unread-count", nil, adminCookies...)
+	assertStatus(t, w, http.StatusOK)
+	decodeJSON(t, w, &resp)
+	if resp["unread_count"].(float64) != 1 {
+		t.Fatalf("expected 1 unread activity item, got %.0f", resp["unread_count"].(float64))
+	}
+
+	// Fetch activities, verify 'is_new' is true
+	page := listUserActivity(t, r, adminCookies, "?limit=10")
+	if len(page.Items) != 1 { // only create expense = 1 activity item
+		t.Fatalf("expected 1 activity item, got %d", len(page.Items))
+	}
+	for _, item := range page.Items {
+		if !item["is_new"].(bool) {
+			t.Fatalf("expected is_new to be true, got false")
+		}
+	}
+
+	// Mark as read
+	w = doJSON(r, "POST", "/api/user/activity/read", nil, adminCookies...)
+	assertStatus(t, w, http.StatusOK)
+
+	// Unread count should now be 0
+	w = doJSON(r, "GET", "/api/user/activity/unread-count", nil, adminCookies...)
+	assertStatus(t, w, http.StatusOK)
+	decodeJSON(t, w, &resp)
+	if resp["unread_count"].(float64) != 0 {
+		t.Fatalf("expected 0 unread activity items after marking as read, got %.0f", resp["unread_count"].(float64))
+	}
+
+	// Fetch activities again, verify 'is_new' is false
+	page = listUserActivity(t, r, adminCookies, "?limit=10")
+	for _, item := range page.Items {
+		if item["is_new"].(bool) {
+			t.Fatalf("expected is_new to be false after marking read, got true")
+		}
+	}
+}
