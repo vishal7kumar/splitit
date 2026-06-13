@@ -132,8 +132,32 @@ export default function AddExpensePage() {
 
   return (
     <div className="max-w-lg mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Add Expense</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Add Expense</h1>
+        <button
+          type="submit"
+          form="add-expense-form"
+          disabled={create.isPending}
+          className="sm:hidden flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2.5 disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
+          aria-label="Save expense"
+        >
+          {create.isPending ? (
+            <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={3}
+              stroke="currentColor"
+              className="w-5 h-5"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+          )}
+        </button>
+      </div>
+      <form id="add-expense-form" onSubmit={handleSubmit} className="space-y-4">
         {error && <p className="text-red-600 text-sm">{error}</p>}
 
         <input
@@ -287,7 +311,7 @@ export default function AddExpensePage() {
         <button
           type="submit"
           disabled={create.isPending}
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          className="hidden sm:block w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
         >
           {create.isPending ? "Adding..." : "Add Expense"}
         </button>

@@ -60,7 +60,7 @@ export default function EditExpensePage() {
       setAmount(String(exp.amount));
       setDescription(exp.description);
       setCategory(exp.category);
-      setDate(exp.date);
+      setDate(exp.date ? exp.date.split("T")[0] : "");
       setPaidBy(exp.paid_by);
       setSelectedMembers(splits.map((s: ExpenseSplit) => s.user_id));
 
@@ -165,8 +165,32 @@ export default function EditExpensePage() {
 
   return (
     <div className="max-w-lg mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Edit Expense</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Edit Expense</h1>
+        <button
+          type="submit"
+          form="edit-expense-form"
+          disabled={update.isPending}
+          className="sm:hidden flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2.5 disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
+          aria-label="Save changes"
+        >
+          {update.isPending ? (
+            <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={3}
+              stroke="currentColor"
+              className="w-5 h-5"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+          )}
+        </button>
+      </div>
+      <form id="edit-expense-form" onSubmit={handleSubmit} className="space-y-4">
         {error && <p className="text-red-600 text-sm">{error}</p>}
 
         <input
@@ -321,7 +345,7 @@ export default function EditExpensePage() {
           <button
             type="submit"
             disabled={update.isPending}
-            className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+            className="hidden sm:block flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
           >
             {update.isPending ? "Saving..." : "Save Changes"}
           </button>

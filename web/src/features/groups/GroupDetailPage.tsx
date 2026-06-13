@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, useMemo, type FormEvent } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getGroup, addMember, removeMember, deleteGroup, updateGroup } from "../../api/groups";
@@ -25,6 +25,7 @@ export default function GroupDetailPage() {
   const [settleAmount, setSettleAmount] = useState("");
   const [settlePrompt, setSettlePrompt] = useState<{ to: number; amount: number } | null>(null);
   const [customSettleAmount, setCustomSettleAmount] = useState("");
+  const [activeTab, setActiveTab] = useState<"expenses" | "balances" | "settings" | "totals">("expenses");
 
   const { data, isLoading } = useQuery({
     queryKey: ["group", groupId],
@@ -97,6 +98,86 @@ export default function GroupDetailPage() {
     },
   });
 
+  // Group expenses by Month (e.g. "June 2026")
+  const groupedExpenses = useMemo(() => {
+    const groups: { monthKey: string; monthLabel: string; items: Expense[] }[] = [];
+    expenses.forEach((exp: Expense) => {
+      const parts = exp.date.split("-");
+      let monthLabel = "Unknown Month";
+      let monthKey = "unknown";
+      if (parts.length >= 2) {
+        const year = parts[0];
+        const monthNum = parseInt(parts[1], 10) - 1; // 0-based
+        const dateObj = new Date(Number(year), monthNum, 1);
+        monthLabel = dateObj.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+        monthKey = `${year}-${parts[1]}`;
+      }
+      
+      let groupObj = groups.find((g) => g.monthKey === monthKey);
+      if (!groupObj) {
+        groupObj = { monthKey, monthLabel, items: [] };
+        groups.push(groupObj);
+      }
+      groupObj.items.push(exp);
+    });
+    return groups;
+  }, [expenses]);
+
+  // List of all months that have expenses + current month
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    
+    // Add current month as a default fallback
+    const now = new Date();
+    const fallbackMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    months.add(fallbackMonthKey);
+    
+    expenses.forEach((exp) => {
+      const parts = exp.date.split("-");
+      if (parts.length >= 2) {
+        months.add(`${parts[0]}-${parts[1]}`);
+      }
+    });
+    
+    // Sort descending
+    return Array.from(months).sort((a, b) => b.localeCompare(a));
+  }, [expenses]);
+
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+
+  const currentMonthKey = (selectedMonth && availableMonths.includes(selectedMonth))
+    ? selectedMonth
+    : (availableMonths.length > 0 ? availableMonths[0] : "");
+
+  const getMonthLabel = (monthKey: string) => {
+    const parts = monthKey.split("-");
+    if (parts.length !== 2) return monthKey;
+    const date = new Date(Number(parts[0]), parseInt(parts[1], 10) - 1, 1);
+    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  };
+
+  const monthlyExpenses = useMemo(() => {
+    if (!currentMonthKey) return [];
+    return expenses.filter((exp) => exp.date.startsWith(currentMonthKey));
+  }, [expenses, currentMonthKey]);
+
+  const totalGroupSpend = useMemo(() => {
+    return monthlyExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
+  }, [monthlyExpenses]);
+
+  const memberSpends = useMemo(() => {
+    if (!data) return [];
+    return data.members.map((member) => {
+      const amountPaid = monthlyExpenses
+        .filter((exp) => exp.paid_by === member.user_id)
+        .reduce((sum, exp) => sum + Number(exp.amount), 0);
+      return {
+        ...member,
+        amountPaid,
+      };
+    }).sort((a, b) => b.amountPaid - a.amountPaid);
+  }, [data, monthlyExpenses]);
+
   function handleAddMember(e: FormEvent) {
     e.preventDefault();
     if (email.trim()) add.mutate(email.trim());
@@ -109,126 +190,258 @@ export default function GroupDetailPage() {
   const { group, members } = data;
   const currentMember = members.find((m) => m.user_id === user?.id);
   const isAdmin = currentMember?.role === "admin";
-  const memberMap = Object.fromEntries(members.map((m) => [m.user_id, m]));
-
-  return (
+  const memberMap = Object.fromEntries(members.map((m) => [m.user_id, m]));  return (
     <div className="max-w-2xl mx-auto">
+      {/* Back to Groups Link */}
+      <div className="mb-4">
+        <Link
+          to="/groups"
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors font-medium cursor-pointer"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+            className="w-4 h-4"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
+            />
+          </svg>
+          Back to Groups
+        </Link>
+      </div>
+
+      {/* Group Title and Actions */}
       <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="break-words text-2xl font-bold">{group.name}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-sm text-gray-500">Currency:</span>
-            {isAdmin ? (
-              <select
-                value={group.currency}
-                onChange={(e) => updateCurrency.mutate(e.target.value)}
-                className="text-sm border rounded px-2 py-1"
-              >
-                <option value="INR">INR</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-                <option value="GBP">GBP</option>
-              </select>
-            ) : (
-              <span className="text-sm font-medium">{group.currency}</span>
-            )}
-          </div>
+          <h1 className="break-words text-2xl font-bold text-gray-900">{group.name}</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Currency: <span className="font-semibold text-gray-700">{group.currency}</span>
+          </p>
         </div>
-        <div className="flex flex-wrap gap-3 items-center sm:items-start sm:justify-end">
+        <div className="flex items-center">
           <Link
             to={`/groups/${groupId}/add`}
-            className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
+            className="w-full sm:w-auto bg-blue-600 text-white text-center px-4 py-2 rounded text-sm hover:bg-blue-700 font-semibold shadow-sm transition-colors cursor-pointer"
           >
             Add Expense
           </Link>
-          {isAdmin && (
-            <button
-              disabled={del.isPending}
-              onClick={() => {
-                if (confirm("Delete this group?")) del.mutate();
-              }}
-              className="text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
-            >
-              {del.isPending ? "Deleting..." : "Delete group"}
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Expenses */}
-      <section className="mb-8">
-        <h2 className="text-lg font-semibold mb-3">Expenses</h2>
-        <div className="mb-4">
-          <input
-            type="text"
-            placeholder="Search expenses..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full border rounded px-3 py-2 text-sm"
-          />
-        </div>
+      {/* Navigation tabs */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="-mb-px flex space-x-6 sm:space-x-8" aria-label="Tabs">
+          <button
+            onClick={() => setActiveTab("expenses")}
+            className={`
+              flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer
+              ${activeTab === "expenses"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }
+            `}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className="w-4 h-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 17.25 4.5H6.75A2.25 2.25 0 0 0 4.5 6.75v10.5a2.25 2.25 0 0 0 2.25 2.25Z"
+              />
+            </svg>
+            Expenses
+          </button>
+          <button
+            onClick={() => setActiveTab("balances")}
+            className={`
+              flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer
+              ${activeTab === "balances"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }
+            `}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className="w-4 h-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+              />
+            </svg>
+            Balances
+          </button>
+          <button
+            onClick={() => setActiveTab("totals")}
+            className={`
+              flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer
+              ${activeTab === "totals"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }
+            `}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className="w-4 h-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z"
+              />
+            </svg>
+            Totals
+          </button>
+          <button
+            onClick={() => setActiveTab("settings")}
+            className={`
+              flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer
+              ${activeTab === "settings"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }
+            `}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className="w-4 h-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.43l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+              />
+            </svg>
+            Settings
+          </button>
+        </nav>
+      </div>
 
-        {expenses.length === 0 ? (
-          <p className="text-gray-400 text-sm">No expenses yet.</p>
-        ) : (
-          <ul className="space-y-2">
-            {expenses.map((exp: Expense) => (
-              <li
-                key={exp.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate(`/groups/${groupId}/expenses/${exp.id}`)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    navigate(`/groups/${groupId}/expenses/${exp.id}`);
-                  }
-                }}
-                className="flex flex-col gap-2 border rounded p-3 cursor-pointer hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <span className="font-medium break-words">
-                    {exp.description || "Untitled"}
-                  </span>
-                  <div className="break-words text-sm text-gray-500">
-                    {exp.paid_by === user?.id ? "You" : (memberMap[exp.paid_by]?.name || "Unknown")} paid{" "}
-                    {formatCurrency(group.currency, exp.amount)} &middot; {formatDate(exp.date)}
-                  </div>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <Link
-                    to={`/groups/${groupId}/expenses/${exp.id}/edit`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-sm text-blue-600 hover:text-blue-800"
-                  >
-                    Edit
-                  </Link>
-                  <button
-                    disabled={delExpense.isPending}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm("Delete this expense?"))
-                        delExpense.mutate(exp.id);
-                    }}
-                    className="text-sm text-red-500 hover:text-red-700 disabled:opacity-50"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* Balances */}
-      {balanceData && (
+      {/* Tab Content */}
+      {activeTab === "expenses" && (
         <section className="mb-8">
-          <h2 className="text-lg font-semibold mb-3">Balances</h2>
-          <ul className="space-y-1 mb-4">
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="Search expenses..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {expenses.length === 0 ? (
+            <p className="text-gray-400 text-sm">No expenses yet.</p>
+          ) : (
+            <div className="space-y-6">
+              {groupedExpenses.map((groupObj) => (
+                <div key={groupObj.monthKey} className="relative">
+                  <div className="sticky top-0 bg-gray-50/95 backdrop-blur-xs py-2 z-10 flex items-center justify-between border-b border-gray-200 mb-2">
+                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      {groupObj.monthLabel}
+                    </span>
+                    <span className="text-xs text-gray-400 font-medium">
+                      {groupObj.items.length} {groupObj.items.length === 1 ? "expense" : "expenses"}
+                    </span>
+                  </div>
+                  <ul className="space-y-2">
+                    {groupObj.items.map((exp: Expense) => (
+                      <li
+                        key={exp.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => navigate(`/groups/${groupId}/expenses/${exp.id}`)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            navigate(`/groups/${groupId}/expenses/${exp.id}`);
+                          }
+                        }}
+                        className="flex flex-col gap-2 border rounded p-3 cursor-pointer hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between transition-colors bg-white shadow-2xs"
+                      >
+                        <div className="min-w-0">
+                          <span className="font-medium break-words text-gray-900">
+                            {exp.description || "Untitled"}
+                          </span>
+                          <div className="break-words text-sm text-gray-500 mt-0.5">
+                            {exp.paid_by === user?.id ? "You" : (memberMap[exp.paid_by]?.name || "Unknown")} paid{" "}
+                            {formatCurrency(group.currency, exp.amount)} &middot; {formatDate(exp.date)}
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 gap-2">
+                          <Link
+                            to={`/groups/${groupId}/expenses/${exp.id}/edit`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-sm text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
+                          >
+                            Edit
+                          </Link>
+                          <button
+                            disabled={delExpense.isPending}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm("Delete this expense?"))
+                                delExpense.mutate(exp.id);
+                            }}
+                            className="text-sm text-red-500 hover:text-red-700 font-medium disabled:opacity-50 cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {activeTab === "balances" && balanceData && (
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-3 text-gray-900">Balances</h2>
+          <ul className="space-y-1.5 mb-4">
             {balanceData.balances.map((b) => (
-              <li key={b.user_id} className="flex justify-between gap-3 text-sm border rounded p-2">
-                <span className="min-w-0 break-words">{b.user_id === user?.id ? "You" : b.name}</span>
-                <span className={b.balance >= 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+              <li key={b.user_id} className="flex justify-between gap-3 text-sm border rounded p-2.5 bg-white shadow-xs">
+                <span className="min-w-0 break-words text-gray-700">{b.user_id === user?.id ? "You" : b.name}</span>
+                <span className={b.balance >= 0 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
                   {b.balance > 0 ? "+" : ""}{formatCurrency(group.currency, b.balance)}
                 </span>
               </li>
@@ -238,18 +451,18 @@ export default function GroupDetailPage() {
           {balanceData.debts.length > 0 && (
             <>
               <h3 className="text-sm font-medium text-gray-700 mb-2">Simplified debts</h3>
-              <ul className="space-y-1 mb-4">
+              <ul className="space-y-1.5 mb-4">
                 {balanceData.debts.map((d, i) => (
-                  <li key={i} className="flex flex-col gap-2 text-sm border rounded p-2 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="min-w-0 break-words">
-                      <span className="font-medium">{d.from === user?.id ? "You" : d.from_name}</span>
+                  <li key={i} className="flex flex-col gap-2 text-sm border rounded p-2.5 bg-white shadow-xs sm:flex-row sm:items-center sm:justify-between">
+                    <span className="min-w-0 break-words text-gray-700">
+                      <span className="font-semibold text-gray-900">{d.from === user?.id ? "You" : d.from_name}</span>
                       {d.from === user?.id ? " owe " : " owes "}
-                      <span className="font-medium">{d.to === user?.id ? "You" : d.to_name}</span>
+                      <span className="font-semibold text-gray-900">{d.to === user?.id ? "You" : d.to_name}</span>
                       {" "}{formatCurrency(group.currency, d.amount)}
                     </span>
                     {d.from === user?.id && (
                       settlePrompt?.to === d.to ? (
-                        <div className="flex flex-wrap items-center gap-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <button
                             disabled={settle.isPending}
                             onClick={() => {
@@ -257,7 +470,7 @@ export default function GroupDetailPage() {
                               setSettlePrompt(null);
                               setCustomSettleAmount("");
                             }}
-                            className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 disabled:opacity-50"
+                            className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 font-medium disabled:opacity-50 transition-colors cursor-pointer"
                           >
                             {settle.isPending ? "Paying..." : `Full (${formatCurrency(group.currency, d.amount)})`}
                           </button>
@@ -268,7 +481,7 @@ export default function GroupDetailPage() {
                               placeholder="Amount"
                               value={customSettleAmount}
                               onChange={(e) => setCustomSettleAmount(e.target.value)}
-                              className="w-20 min-w-0 border rounded px-1 py-0.5 text-xs"
+                              className="w-20 min-w-0 border rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                             />
                             <button
                               disabled={settle.isPending}
@@ -280,14 +493,14 @@ export default function GroupDetailPage() {
                                   setCustomSettleAmount("");
                                 }
                               }}
-                              className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 disabled:opacity-50"
+                              className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 font-medium disabled:opacity-50 transition-colors cursor-pointer"
                             >
                               {settle.isPending ? "..." : "Pay"}
                             </button>
                           </div>
                           <button
                             onClick={() => { setSettlePrompt(null); setCustomSettleAmount(""); }}
-                            className="text-xs text-gray-400 hover:text-gray-600 px-1"
+                            className="text-xs text-gray-400 hover:text-gray-600 px-1 font-medium cursor-pointer"
                           >
                             Cancel
                           </button>
@@ -295,7 +508,7 @@ export default function GroupDetailPage() {
                       ) : (
                         <button
                           onClick={() => setSettlePrompt({ to: d.to, amount: d.amount })}
-                          className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
+                          className="text-xs bg-green-600 text-white px-2.5 py-1 rounded hover:bg-green-700 font-semibold shadow-xs transition-colors cursor-pointer"
                         >
                           Settle up
                         </button>
@@ -308,13 +521,13 @@ export default function GroupDetailPage() {
           )}
 
           {/* Manual settle */}
-          <div className="border rounded p-3 bg-gray-50">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Record a payment</h3>
+          <div className="border rounded-lg p-4 bg-gray-50 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-800 mb-2">Record a payment</h3>
             <div className="flex gap-2 flex-col sm:flex-row">
               <select
                 value={settleDirection}
                 onChange={(e) => setSettleDirection(e.target.value as "paid" | "received")}
-                className="w-full sm:w-32 border rounded px-2 py-1 text-sm bg-white"
+                className="w-full sm:w-36 border rounded px-2.5 py-1.5 text-sm bg-white cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="paid">You paid</option>
                 <option value="received">You received from</option>
@@ -322,7 +535,7 @@ export default function GroupDetailPage() {
               <select
                 value={settleOtherId}
                 onChange={(e) => setSettleOtherId(Number(e.target.value))}
-                className="min-w-0 flex-1 border rounded px-2 py-1 text-sm bg-white"
+                className="min-w-0 flex-1 border rounded px-2.5 py-1.5 text-sm bg-white cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value={0}>Select member...</option>
                 {members
@@ -339,7 +552,7 @@ export default function GroupDetailPage() {
                 placeholder="Amount"
                 value={settleAmount}
                 onChange={(e) => setSettleAmount(e.target.value)}
-                className="w-full min-w-0 border rounded px-2 py-1 text-sm sm:w-28"
+                className="w-full min-w-0 border rounded px-2.5 py-1.5 text-sm sm:w-28 shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <button
                 disabled={settle.isPending}
@@ -353,7 +566,7 @@ export default function GroupDetailPage() {
                     }
                   }
                 }}
-                className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 disabled:opacity-50"
+                className="bg-green-600 text-white px-4 py-1.5 rounded text-sm hover:bg-green-700 font-semibold disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
               >
                 {settle.isPending ? "Recording..." : "Record"}
               </button>
@@ -362,59 +575,194 @@ export default function GroupDetailPage() {
         </section>
       )}
 
-      {/* Members */}
-      <section className="mb-8">
-        <h2 className="text-lg font-semibold mb-3">
-          Members ({members.length})
-        </h2>
-
-        <form onSubmit={handleAddMember} className="flex flex-col gap-2 mb-4 sm:flex-row">
-          <input
-            type="email"
-            placeholder="Add member by email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="min-w-0 flex-1 border rounded px-3 py-2"
-            required
-          />
-          <button
-            type="submit"
-            disabled={add.isPending}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-          >
-            {add.isPending ? "Adding..." : "Add"}
-          </button>
-        </form>
-        {error && <p className="text-red-600 text-sm mb-2">{error}</p>}
-
-        <ul className="space-y-2">
-          {members.map((m) => (
-            <li
-              key={m.user_id}
-              className="flex items-start justify-between gap-3 border rounded p-3"
-            >
-              <div className="min-w-0">
-                <span className="font-medium break-words">{m.user_id === user?.id ? "You" : m.name}</span>
-                <span className="block break-all text-gray-400 text-sm sm:ml-2 sm:inline">{m.email}</span>
-                {m.role === "admin" && (
-                  <span className="mt-1 inline-block text-xs bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 sm:ml-2 sm:mt-0">
-                    admin
-                  </span>
-                )}
+      {activeTab === "totals" && (
+        <section className="mb-8 space-y-6">
+          {/* Month Selector & Overall Stats */}
+          <div className="bg-white border rounded-lg p-5 shadow-xs space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Monthly Spending Totals</h2>
+                <p className="text-xs text-gray-500">Summary of total spends by the group and individual members.</p>
               </div>
-              {isAdmin && m.user_id !== user?.id && (
-                <button
-                  disabled={remove.isPending}
-                  onClick={() => remove.mutate(m.user_id)}
-                  className="shrink-0 text-sm text-red-500 hover:text-red-700 disabled:opacity-50"
+              <div className="flex items-center gap-2">
+                <label htmlFor="totals-month-select" className="text-xs font-semibold text-gray-500 uppercase">
+                  Month:
+                </label>
+                <select
+                  id="totals-month-select"
+                  value={currentMonthKey}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="text-sm border rounded px-3 py-1.5 bg-white shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-gray-800 font-medium"
                 >
-                  Remove
-                </button>
+                  {availableMonths.map((m) => (
+                    <option key={m} value={m}>
+                      {getMonthLabel(m)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <hr className="border-gray-100" />
+
+            <div className="py-4 text-center sm:text-left">
+              <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Group Spending</span>
+              <span className="block text-3xl font-bold text-gray-900 mt-1">
+                {formatCurrency(group.currency, totalGroupSpend)}
+              </span>
+              <p className="text-xs text-gray-400 mt-1">
+                For {getMonthLabel(currentMonthKey)} &middot; {monthlyExpenses.length} {monthlyExpenses.length === 1 ? "expense" : "expenses"}
+              </p>
+            </div>
+          </div>
+
+          {/* Individual Spends */}
+          <div className="bg-white border rounded-lg p-5 shadow-xs">
+            <h3 className="text-sm font-semibold text-gray-800 mb-4">Spends by Member</h3>
+            
+            {totalGroupSpend === 0 ? (
+              <p className="text-gray-400 text-sm py-2">No spends recorded for this month.</p>
+            ) : (
+              <ul className="space-y-4">
+                {memberSpends.map((m) => {
+                  const percentage = totalGroupSpend > 0 ? (m.amountPaid / totalGroupSpend) * 100 : 0;
+                  return (
+                    <li key={m.user_id} className="space-y-1">
+                      <div className="flex justify-between items-center text-sm gap-2">
+                        <span className="font-medium text-gray-700 truncate">
+                          {m.user_id === user?.id ? "You" : m.name}
+                        </span>
+                        <span className="font-semibold text-gray-900 shrink-0">
+                          {formatCurrency(group.currency, m.amountPaid)}
+                        </span>
+                      </div>
+                      
+                      {/* CSS progress bar */}
+                      <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                        <div
+                          className="bg-blue-600 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      
+                      <div className="flex justify-between text-xs text-gray-400">
+                        <span>
+                          {percentage.toFixed(1)}% of total
+                        </span>
+                        <span>
+                          {monthlyExpenses.filter((e) => e.paid_by === m.user_id).length} paid
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </section>
+      )}
+
+      {activeTab === "settings" && (
+        <section className="mb-8 space-y-6">
+          {/* Group Preferences Card */}
+          <div className="bg-white border rounded-lg p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-800 mb-3">Group Preferences</h3>
+            <div className="flex items-center justify-between gap-4 py-2">
+              <div>
+                <span className="block text-sm font-medium text-gray-700">Group Currency</span>
+                <span className="text-xs text-gray-500">The currency used for calculating balances and new expenses.</span>
+              </div>
+              {isAdmin ? (
+                <select
+                  value={group.currency}
+                  onChange={(e) => updateCurrency.mutate(e.target.value)}
+                  className="text-sm border rounded px-3 py-1.5 bg-white shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                >
+                  <option value="INR">INR</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="GBP">GBP</option>
+                </select>
+              ) : (
+                <span className="text-sm font-semibold text-gray-800">{group.currency}</span>
               )}
-            </li>
-          ))}
-        </ul>
-      </section>
+            </div>
+          </div>
+
+          {/* Members Management Card */}
+          <div className="bg-white border rounded-lg p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-800 mb-3">Members ({members.length})</h3>
+
+            <form onSubmit={handleAddMember} className="flex flex-col gap-2 mb-4 sm:flex-row">
+              <input
+                type="email"
+                placeholder="Add member by email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="min-w-0 flex-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+              <button
+                type="submit"
+                disabled={add.isPending}
+                className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors font-semibold shadow-sm cursor-pointer"
+              >
+                {add.isPending ? "Adding..." : "Add"}
+              </button>
+            </form>
+            {error && <p className="text-red-600 text-sm mb-2">{error}</p>}
+
+            <ul className="space-y-2">
+              {members.map((m) => (
+                <li
+                  key={m.user_id}
+                  className="flex items-center justify-between gap-3 border rounded p-3 bg-gray-50"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm text-gray-900 break-words">{m.user_id === user?.id ? "You" : m.name}</span>
+                      {m.role === "admin" && (
+                        <span className="text-xs bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 font-semibold">
+                          admin
+                        </span>
+                      )}
+                    </div>
+                    <span className="block break-all text-gray-500 text-xs mt-0.5">{m.email}</span>
+                  </div>
+                  {isAdmin && m.user_id !== user?.id && (
+                    <button
+                      disabled={remove.isPending}
+                      onClick={() => remove.mutate(m.user_id)}
+                      className="shrink-0 text-sm text-red-600 hover:text-red-800 font-semibold disabled:opacity-50 cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Danger Zone Card */}
+          {isAdmin && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-red-800 mb-1.5">Danger Zone</h3>
+              <p className="text-xs text-red-600 mb-4">
+                Deleting this group is permanent. All expenses, balances, and history will be permanently deleted.
+              </p>
+              <button
+                disabled={del.isPending}
+                onClick={() => {
+                  if (confirm("Delete this group?")) del.mutate();
+                }}
+                className="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700 font-semibold disabled:opacity-50 shadow-sm transition-colors cursor-pointer"
+              >
+                {del.isPending ? "Deleting..." : "Delete group"}
+              </button>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }
