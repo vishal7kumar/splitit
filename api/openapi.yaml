@@ -176,14 +176,14 @@ paths:
           $ref: "#/components/responses/Forbidden"
     delete:
       tags: [Groups]
-      summary: Delete a group
+      summary: Soft-delete a group for 30 days
       responses:
         "200":
           description: Group deleted
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MessageResponse"
+                $ref: "#/components/schemas/DeletionResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -352,14 +352,14 @@ paths:
           $ref: "#/components/responses/NotFound"
     delete:
       tags: [Expenses]
-      summary: Delete an expense
+      summary: Soft-delete an expense for 30 days
       responses:
         "200":
           description: Expense deleted
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MessageResponse"
+                $ref: "#/components/schemas/DeletionResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -463,6 +463,35 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /api/activity/{activityId}/revert:
+    parameters:
+      - $ref: "#/components/parameters/ActivityId"
+    post:
+      tags: [Activity]
+      summary: Restore the expense or group deleted by an activity
+      responses:
+        "200":
+          description: Deleted resource restored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevertActivityResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "410":
+          description: The 30-day restore window expired or the target was purged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/user/total-balance:
     get:
       tags: [Balances]
@@ -585,6 +614,13 @@ components:
         minimum: 1
     FriendId:
       name: friendId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    ActivityId:
+      name: activityId
       in: path
       required: true
       schema:
@@ -835,13 +871,32 @@ components:
           type: string
         action:
           type: string
-          enum: [create, update, delete, comment, settlement]
+          enum: [create, update, delete, delete_expense, delete_group, restore_expense, restore_group, comment, settlement]
         summary:
           type: string
         created_at:
           type: string
           format: date-time
         is_involved:
+          type: boolean
+        is_new:
+          type: boolean
+        resource_type:
+          type: string
+          enum: [expense, group]
+        can_revert:
+          type: boolean
+        revert_deadline:
+          type: string
+          format: date-time
+          nullable: true
+        reverted_at:
+          type: string
+          format: date-time
+          nullable: true
+        group_deleted:
+          type: boolean
+        expense_deleted:
           type: boolean
     UserActivityPage:
       type: object
@@ -1078,6 +1133,29 @@ components:
       required: [message]
       properties:
         message:
+          type: string
+    DeletionResponse:
+      type: object
+      required: [message, activity_id]
+      properties:
+        message:
+          type: string
+        activity_id:
+          type: integer
+    RevertActivityResult:
+      type: object
+      required: [message, resource_type, group_id]
+      properties:
+        message:
+          type: string
+        resource_type:
+          type: string
+          enum: [expense, group]
+        group_id:
+          type: integer
+        expense_id:
+          type: integer
+        group_name:
           type: string
     ErrorResponse:
       type: object

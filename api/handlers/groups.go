@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"splitit-api/models"
 
@@ -32,7 +34,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 	err := h.DB.Get(&count, `
 		SELECT COUNT(*) FROM groups g
 		JOIN group_members gm ON g.id = gm.group_id
-		WHERE g.name = $1 AND gm.user_id = $2
+		WHERE g.name = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL
 	`, req.Name, userID)
 	if err == nil && count > 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "You are already a member of a group with this name"})
@@ -84,7 +86,7 @@ func (h *GroupHandler) List(c *gin.Context) {
 	err := h.DB.Select(&groups,
 		`SELECT g.* FROM groups g
 		 JOIN group_members gm ON g.id = gm.group_id
-		 WHERE gm.user_id = $1
+		 WHERE gm.user_id = $1 AND g.deleted_at IS NULL
 		 ORDER BY g.created_at DESC`, userID,
 	)
 	if err != nil {
@@ -111,7 +113,7 @@ func (h *GroupHandler) Get(c *gin.Context) {
 	}
 
 	var group models.Group
-	if err := h.DB.Get(&group, "SELECT * FROM groups WHERE id = $1", groupID); err != nil {
+	if err := h.DB.Get(&group, "SELECT * FROM groups WHERE id = $1 AND deleted_at IS NULL", groupID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Group not found"})
 		return
 	}
@@ -160,7 +162,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		FROM group_members gm1
 		JOIN group_members gm2 ON gm1.user_id = gm2.user_id
 		JOIN groups g2 ON gm2.group_id = g2.id
-		WHERE gm1.group_id = $1 AND g2.id != $1 AND g2.name = $2
+		WHERE gm1.group_id = $1 AND g2.id != $1 AND g2.name = $2 AND g2.deleted_at IS NULL
 	`, groupID, req.Name)
 	if err == nil && conflictingUsers > 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "One or more members are already in another group with this name"})
@@ -172,7 +174,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 	if currency == "" {
 		currency = "INR"
 	}
-	err = h.DB.Get(&group, "UPDATE groups SET name = $1, currency = $2 WHERE id = $3 RETURNING *", req.Name, currency, groupID)
+	err = h.DB.Get(&group, "UPDATE groups SET name = $1, currency = $2 WHERE id = $3 AND deleted_at IS NULL RETURNING *", req.Name, currency, groupID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update group"})
 		return
@@ -194,23 +196,75 @@ func (h *GroupHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	_, err = h.DB.Exec("DELETE FROM groups WHERE id = $1", groupID)
+	tx, err := h.DB.Beginx()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete group"})
 		return
 	}
+	defer tx.Rollback()
 
-	c.JSON(http.StatusOK, gin.H{"message": "Group deleted"})
+	var group models.Group
+	if err := tx.Get(&group, "SELECT * FROM groups WHERE id = $1 AND deleted_at IS NULL FOR UPDATE", groupID); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Group not found"})
+		return
+	}
+
+	actorName := h.userName(userID)
+	summary := fmt.Sprintf("%s deleted group %s", actorName, group.Name)
+	var activityID int
+	if err := tx.Get(&activityID,
+		`INSERT INTO group_activity (group_id, user_id, action, summary, revert_deadline)
+		 VALUES ($1, $2, 'delete_group', $3, NOW() + INTERVAL '30 days') RETURNING id`,
+		groupID, userID, summary,
+	); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create delete activity"})
+		return
+	}
+
+	var memberIDs []int
+	if err := tx.Select(&memberIDs, "SELECT user_id FROM group_members WHERE group_id = $1", groupID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load group members"})
+		return
+	}
+	participants := []activityParticipant{{UserID: userID, Role: "actor"}}
+	for _, memberID := range memberIDs {
+		participants = append(participants, activityParticipant{UserID: memberID, Role: "member"})
+	}
+	if err := recordActivityParticipants(tx, activityID, participants); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create delete activity"})
+		return
+	}
+
+	if _, err := tx.Exec("UPDATE groups SET deleted_at = NOW(), deleted_by = $1 WHERE id = $2", userID, groupID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete group"})
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete group"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Group deleted", "activity_id": activityID})
 }
 
 func (h *GroupHandler) isMember(groupID, userID int) bool {
 	var count int
-	h.DB.Get(&count, "SELECT COUNT(*) FROM group_members WHERE group_id = $1 AND user_id = $2", groupID, userID)
+	h.DB.Get(&count, `SELECT COUNT(*) FROM group_members gm JOIN groups g ON g.id = gm.group_id
+		WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`, groupID, userID)
 	return count > 0
 }
 
 func (h *GroupHandler) isAdmin(groupID, userID int) bool {
 	var count int
-	h.DB.Get(&count, "SELECT COUNT(*) FROM group_members WHERE group_id = $1 AND user_id = $2 AND role = 'admin'", groupID, userID)
+	h.DB.Get(&count, `SELECT COUNT(*) FROM group_members gm JOIN groups g ON g.id = gm.group_id
+		WHERE gm.group_id = $1 AND gm.user_id = $2 AND gm.role = 'admin' AND g.deleted_at IS NULL`, groupID, userID)
 	return count > 0
+}
+
+func (h *GroupHandler) userName(userID int) string {
+	var name string
+	if err := h.DB.Get(&name, "SELECT name FROM users WHERE id = $1", userID); err != nil || strings.TrimSpace(name) == "" {
+		return "Someone"
+	}
+	return name
 }

@@ -127,7 +127,7 @@ export default function ExpenseDetailPage() {
               type="button"
               disabled={delExpense.isPending}
               onClick={() => {
-                if (confirm("Delete this expense?")) delExpense.mutate();
+                if (confirm("Delete this expense? You can restore it from Activity for 30 days.")) delExpense.mutate();
               }}
               className="text-xs sm:text-sm border border-red-200 text-red-600 hover:border-red-300 px-3 py-1.5 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
             >

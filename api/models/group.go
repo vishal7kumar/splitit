@@ -3,11 +3,13 @@ package models
 import "time"
 
 type Group struct {
-	ID        int       `db:"id" json:"id"`
-	Name      string    `db:"name" json:"name"`
-	Currency  string    `db:"currency" json:"currency"`
-	CreatedBy int       `db:"created_by" json:"created_by"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	ID        int        `db:"id" json:"id"`
+	Name      string     `db:"name" json:"name"`
+	Currency  string     `db:"currency" json:"currency"`
+	CreatedBy int        `db:"created_by" json:"created_by"`
+	CreatedAt time.Time  `db:"created_at" json:"created_at"`
+	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at,omitempty"`
+	DeletedBy *int       `db:"deleted_by" json:"deleted_by,omitempty"`
 }
 
 type GroupMember struct {

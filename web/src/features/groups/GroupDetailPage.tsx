@@ -77,7 +77,14 @@ export default function GroupDetailPage() {
 
   const del = useMutation({
     mutationFn: () => deleteGroup(groupId),
-    onSuccess: () => navigate("/groups"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      queryClient.invalidateQueries({ queryKey: ["total-balance"] });
+      queryClient.invalidateQueries({ queryKey: ["friends"] });
+      queryClient.invalidateQueries({ queryKey: ["user-activity"] });
+      queryClient.invalidateQueries({ queryKey: ["unread-count"] });
+      navigate("/groups");
+    },
   });
 
   const updateCurrency = useMutation({
@@ -460,7 +467,7 @@ export default function GroupDetailPage() {
                             disabled={delExpense.isPending}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (confirm("Delete this expense?"))
+                              if (confirm("Delete this expense? You can restore it from Activity for 30 days."))
                                 delExpense.mutate(exp.id);
                             }}
                             className="p-1.5 text-gray-500 hover:text-red-650 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
@@ -806,12 +813,12 @@ export default function GroupDetailPage() {
             <div className="bg-red-50/50 border border-red-200 rounded-xl p-5 shadow-sm">
               <h3 className="text-sm font-bold text-red-800 mb-1.5">Danger Zone</h3>
               <p className="text-xs text-red-600 mb-4 leading-relaxed font-medium">
-                Deleting this group is permanent. All expenses, balances, and history will be permanently deleted.
+                This group will be hidden immediately. A group admin can restore it with all of its data from Activity for 30 days.
               </p>
               <button
                 disabled={del.isPending}
                 onClick={() => {
-                  if (confirm("Delete this group?")) del.mutate();
+                  if (confirm("Delete this group? An admin can restore it from Activity for 30 days.")) del.mutate();
                 }}
                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 shadow-sm transition-colors cursor-pointer"
               >

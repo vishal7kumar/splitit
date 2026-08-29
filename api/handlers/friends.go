@@ -129,6 +129,7 @@ func (h *FriendHandler) buildFriendSummaries(userID, onlyFriendID int) ([]friend
 	query := `SELECT DISTINCT u.id AS user_id, u.name, u.email
 		FROM group_members mine
 		JOIN group_members theirs ON theirs.group_id = mine.group_id AND theirs.user_id != mine.user_id
+		JOIN groups active_group ON active_group.id = mine.group_id AND active_group.deleted_at IS NULL
 		JOIN users u ON u.id = theirs.user_id
 		WHERE mine.user_id = $1`
 	args := []interface{}{userID}
@@ -200,6 +201,7 @@ func (h *FriendHandler) groupBreakdowns(userID, friendID int) ([]friendGroupBrea
 		 FROM groups g
 		 JOIN group_members me ON me.group_id = g.id AND me.user_id = $1
 		 JOIN group_members friend ON friend.group_id = g.id AND friend.user_id = $2
+		 WHERE g.deleted_at IS NULL
 		 ORDER BY g.created_at DESC`,
 		userID, friendID,
 	); err != nil {
@@ -266,7 +268,7 @@ func (h *FriendHandler) simplifiedDebts(groupID int) ([]simplifiedDebt, error) {
 	var paidRows []amountRow
 	if err := h.DB.Select(&paidRows,
 		`SELECT paid_by AS user_id, COALESCE(SUM(amount), 0) AS total
-		 FROM expenses WHERE group_id = $1 GROUP BY paid_by`, groupID); err != nil {
+		 FROM expenses WHERE group_id = $1 AND deleted_at IS NULL GROUP BY paid_by`, groupID); err != nil {
 		return nil, err
 	}
 	for _, r := range paidRows {
@@ -278,7 +280,7 @@ func (h *FriendHandler) simplifiedDebts(groupID int) ([]simplifiedDebt, error) {
 		`SELECT es.user_id, COALESCE(SUM(es.share_amount), 0) AS total
 		 FROM expense_splits es
 		 JOIN expenses e ON es.expense_id = e.id
-		 WHERE e.group_id = $1
+		 WHERE e.group_id = $1 AND e.deleted_at IS NULL
 		 GROUP BY es.user_id`, groupID); err != nil {
 		return nil, err
 	}

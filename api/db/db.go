@@ -28,7 +28,9 @@ func Migrate(db *sqlx.DB) error {
 			name        TEXT NOT NULL,
 			currency    TEXT NOT NULL DEFAULT 'USD',
 			created_by  INTEGER NOT NULL REFERENCES users(id),
-			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			deleted_at  TIMESTAMPTZ,
+			deleted_by  INTEGER REFERENCES users(id)
 		)`,
 		`CREATE TABLE IF NOT EXISTS group_members (
 			group_id   INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
@@ -46,7 +48,9 @@ func Migrate(db *sqlx.DB) error {
 			category    TEXT NOT NULL DEFAULT 'general',
 			date        DATE NOT NULL DEFAULT CURRENT_DATE,
 			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			deleted_at  TIMESTAMPTZ,
+			deleted_by  INTEGER REFERENCES users(id)
 		)`,
 		`CREATE TABLE IF NOT EXISTS expense_splits (
 			id           SERIAL PRIMARY KEY,
@@ -76,7 +80,10 @@ func Migrate(db *sqlx.DB) error {
 			user_id     INTEGER NOT NULL REFERENCES users(id),
 			action      TEXT NOT NULL,
 			summary     TEXT NOT NULL,
-			created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			revert_deadline  TIMESTAMPTZ,
+			reverted_at      TIMESTAMPTZ,
+			reverted_by      INTEGER REFERENCES users(id)
 		)`,
 		`CREATE TABLE IF NOT EXISTS group_activity_participants (
 			activity_id INTEGER NOT NULL REFERENCES group_activity(id) ON DELETE CASCADE,
@@ -115,9 +122,19 @@ func Migrate(db *sqlx.DB) error {
 	// Column migrations for existing tables
 	migrations := []string{
 		`ALTER TABLE groups ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'USD'`,
+		`ALTER TABLE groups ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`,
+		`ALTER TABLE groups ADD COLUMN IF NOT EXISTS deleted_by INTEGER REFERENCES users(id)`,
+		`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`,
+		`ALTER TABLE expenses ADD COLUMN IF NOT EXISTS deleted_by INTEGER REFERENCES users(id)`,
+		`ALTER TABLE group_activity ADD COLUMN IF NOT EXISTS revert_deadline TIMESTAMPTZ`,
+		`ALTER TABLE group_activity ADD COLUMN IF NOT EXISTS reverted_at TIMESTAMPTZ`,
+		`ALTER TABLE group_activity ADD COLUMN IF NOT EXISTS reverted_by INTEGER REFERENCES users(id)`,
 		`CREATE INDEX IF NOT EXISTS idx_group_members_user_group ON group_members(user_id, group_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_group_activity_group_created_id ON group_activity(group_id, created_at DESC, id DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_group_activity_participants_activity_user ON group_activity_participants(activity_id, user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_groups_deleted_at ON groups(deleted_at) WHERE deleted_at IS NOT NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_expenses_deleted_at ON expenses(deleted_at) WHERE deleted_at IS NOT NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_expenses_active_group_date ON expenses(group_id, date DESC, created_at DESC) WHERE deleted_at IS NULL`,
 		`INSERT INTO group_activity_participants (activity_id, user_id, role)
 		 SELECT id, user_id, 'actor' FROM group_activity
 		 ON CONFLICT DO NOTHING`,

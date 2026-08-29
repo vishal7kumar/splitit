@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../auth/useAuth";
-import { listUserActivity, markActivityAsRead } from "../../api/activity";
+import { listUserActivity, markActivityAsRead, revertActivity } from "../../api/activity";
 import { formatDate } from "../../lib/formatDate";
 
 export default function ActivityPage() {
@@ -28,6 +28,22 @@ export default function ActivityPage() {
     onSuccess: () => {
       // Invalidate the count key to reset badge in layout header
       queryClient.invalidateQueries({ queryKey: ["unread-count"] });
+    },
+  });
+
+  const revertMutation = useMutation({
+    mutationFn: (activityId: number) => revertActivity(activityId),
+    onSuccess: () => {
+      [
+        "user-activity",
+        "unread-count",
+        "groups",
+        "group",
+        "expenses",
+        "balances",
+        "friends",
+        "total-balance",
+      ].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
     },
   });
 
@@ -76,6 +92,18 @@ export default function ActivityPage() {
         <ul className="space-y-3">
           {activity.map((item) => {
             const isActorYou = item.user_id === user?.id;
+            const canNavigate = !item.group_deleted && (!item.expense_id || !item.expense_deleted);
+            const isExpired = Boolean(
+              item.revert_deadline &&
+                !item.reverted_at &&
+                new Date(item.revert_deadline).getTime() <= Date.now()
+            );
+            const isReverting = revertMutation.isPending && revertMutation.variables === item.id;
+            const revertError =
+              revertMutation.isError && revertMutation.variables === item.id
+                ? ((revertMutation.error as Error & { response?: { data?: { error?: string } } })
+                    .response?.data?.error || "Failed to restore this deletion")
+                : "";
             const content = (
               <div className="flex items-start justify-between gap-3 text-sm">
                 <div className="break-words text-gray-600 flex-1 min-w-0">
@@ -99,31 +127,57 @@ export default function ActivityPage() {
                     New
                   </span>
                 )}
+                {item.reverted_at && (
+                  <span className="shrink-0 inline-flex items-center rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-[9px] font-extrabold text-green-700 uppercase tracking-wider">
+                    Restored
+                  </span>
+                )}
+                {isExpired && (
+                  <span className="shrink-0 inline-flex items-center rounded-full bg-gray-100 border border-gray-200 px-2 py-0.5 text-[9px] font-extrabold text-gray-500 uppercase tracking-wider">
+                    Expired
+                  </span>
+                )}
               </div>
             );
 
-            const itemClass = `block border rounded-xl p-4 transition-all duration-200 cursor-pointer ${
+            const itemClass = `border rounded-xl p-4 transition-all duration-200 ${
               item.is_new
                 ? "bg-blue-50/30 border-blue-200 shadow-sm"
                 : "bg-white border-gray-200 hover:shadow-md hover:border-gray-300"
             }`;
 
+            const activityContent = canNavigate ? (
+              <Link
+                to={item.expense_id
+                  ? `/groups/${item.group_id}/expenses/${item.expense_id}`
+                  : `/groups/${item.group_id}`}
+                className="block min-w-0 flex-1 cursor-pointer"
+              >
+                {content}
+              </Link>
+            ) : (
+              <div className="min-w-0 flex-1">{content}</div>
+            );
+
             return (
-              <li key={item.id}>
-                {item.expense_id ? (
-                  <Link
-                    to={`/groups/${item.group_id}/expenses/${item.expense_id}`}
-                    className={itemClass}
-                  >
-                    {content}
-                  </Link>
-                ) : (
-                  <Link
-                    to={`/groups/${item.group_id}`}
-                    className={itemClass}
-                  >
-                    {content}
-                  </Link>
+              <li key={item.id} className={itemClass}>
+                <div className="flex items-center gap-3">
+                  {activityContent}
+                  {item.can_revert && (
+                    <button
+                      type="button"
+                      disabled={revertMutation.isPending}
+                      onClick={() => revertMutation.mutate(item.id)}
+                      className="shrink-0 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                    >
+                      {isReverting ? "Reverting..." : "Revert"}
+                    </button>
+                  )}
+                </div>
+                {revertError && (
+                  <p className="mt-2 text-xs font-semibold text-red-600" role="alert">
+                    {revertError}
+                  </p>
                 )}
               </li>
             );

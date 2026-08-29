@@ -44,13 +44,13 @@ func (h *MemberHandler) Add(c *gin.Context) {
 
 	// Check if the user is already in another group with the same name
 	var groupName string
-	err = h.DB.Get(&groupName, "SELECT name FROM groups WHERE id = $1", groupID)
+	err = h.DB.Get(&groupName, "SELECT name FROM groups WHERE id = $1 AND deleted_at IS NULL", groupID)
 	if err == nil {
 		var count int
 		err = h.DB.Get(&count, `
 			SELECT COUNT(*) FROM groups g
 			JOIN group_members gm ON g.id = gm.group_id
-			WHERE g.name = $1 AND gm.user_id = $2 AND g.id != $3
+			WHERE g.name = $1 AND gm.user_id = $2 AND g.id != $3 AND g.deleted_at IS NULL
 		`, groupName, targetUserID, groupID)
 		if err == nil && count > 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "User is already a member of another group with this name"})
@@ -110,12 +110,14 @@ func (h *MemberHandler) Remove(c *gin.Context) {
 
 func (h *MemberHandler) isMember(groupID, userID int) bool {
 	var count int
-	h.DB.Get(&count, "SELECT COUNT(*) FROM group_members WHERE group_id = $1 AND user_id = $2", groupID, userID)
+	h.DB.Get(&count, `SELECT COUNT(*) FROM group_members gm JOIN groups g ON g.id = gm.group_id
+		WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`, groupID, userID)
 	return count > 0
 }
 
 func (h *MemberHandler) isAdmin(groupID, userID int) bool {
 	var count int
-	h.DB.Get(&count, "SELECT COUNT(*) FROM group_members WHERE group_id = $1 AND user_id = $2 AND role = 'admin'", groupID, userID)
+	h.DB.Get(&count, `SELECT COUNT(*) FROM group_members gm JOIN groups g ON g.id = gm.group_id
+		WHERE gm.group_id = $1 AND gm.user_id = $2 AND gm.role = 'admin' AND g.deleted_at IS NULL`, groupID, userID)
 	return count > 0
 }

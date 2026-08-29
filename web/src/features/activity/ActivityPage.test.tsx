@@ -2,8 +2,9 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import userEvent from "@testing-library/user-event";
 import ActivityPage from "./ActivityPage";
-import { listUserActivity, markActivityAsRead } from "../../api/activity";
+import { listUserActivity, markActivityAsRead, revertActivity } from "../../api/activity";
 
 vi.mock("../auth/useAuth", () => ({
   useAuth: () => ({ user: { id: 1, name: "Admin", email: "admin@test.com" } }),
@@ -12,6 +13,7 @@ vi.mock("../auth/useAuth", () => ({
 vi.mock("../../api/activity", () => ({
   listUserActivity: vi.fn(),
   markActivityAsRead: vi.fn().mockResolvedValue({ status: "success" }),
+  revertActivity: vi.fn(),
 }));
 
 const observeMock = vi.fn();
@@ -22,6 +24,7 @@ beforeEach(() => {
   disconnectMock.mockClear();
   vi.mocked(listUserActivity).mockClear();
   vi.mocked(markActivityAsRead).mockClear();
+  vi.mocked(revertActivity).mockReset();
 
   class MockIntersectionObserver {
     constructor(callback: IntersectionObserverCallback) {
@@ -122,5 +125,44 @@ describe("ActivityPage", () => {
     await waitFor(() =>
       expect(listUserActivity).toHaveBeenCalledWith({ limit: 20, cursor: "next-page" })
     );
+  });
+
+  it("reverts an eligible deletion without linking to the deleted target", async () => {
+    vi.mocked(listUserActivity).mockResolvedValue({
+      items: [
+        {
+          id: 7,
+          group_id: 1,
+          group_name: "Trip",
+          expense_id: 4,
+          user_id: 1,
+          user_name: "Admin",
+          action: "delete_expense",
+          summary: "Admin deleted Dinner for 100.00",
+          created_at: "2026-05-01T10:00:00Z",
+          is_involved: true,
+          is_new: false,
+          resource_type: "expense",
+          can_revert: true,
+          revert_deadline: "2026-05-31T10:00:00Z",
+          group_deleted: false,
+          expense_deleted: true,
+        },
+      ],
+      next_cursor: "",
+    });
+    vi.mocked(revertActivity).mockResolvedValue({
+      message: "Expense restored",
+      resource_type: "expense",
+      group_id: 1,
+      expense_id: 4,
+    });
+
+    renderWithProviders();
+    const revertButton = await screen.findByRole("button", { name: "Revert" });
+    expect(screen.queryByRole("link", { name: /deleted Dinner/ })).not.toBeInTheDocument();
+
+    await userEvent.click(revertButton);
+    await waitFor(() => expect(revertActivity).toHaveBeenCalledWith(7));
   });
 });

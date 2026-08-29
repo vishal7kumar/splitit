@@ -7,6 +7,7 @@ import (
 
 	"splitit-api/db"
 	"splitit-api/internal/backup"
+	"splitit-api/internal/retention"
 	"splitit-api/router"
 
 	"github.com/joho/godotenv"
@@ -43,6 +44,7 @@ func main() {
 		}
 		backup.NewService(backupConfig, backup.PostgresStore{DB: database}, objectStore).Start(context.Background())
 	}
+	retention.NewService(database).Start(context.Background())
 
 	r := router.Setup(database)
 	log.Printf("Server starting on :%s", port)

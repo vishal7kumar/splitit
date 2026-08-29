@@ -162,7 +162,7 @@ func (h *ExpenseHandler) List(c *gin.Context) {
 		return
 	}
 
-	query := "SELECT * FROM expenses WHERE group_id = $1"
+	query := "SELECT * FROM expenses WHERE group_id = $1 AND deleted_at IS NULL"
 	args := []interface{}{groupID}
 	argIdx := 2
 
@@ -226,7 +226,7 @@ func (h *ExpenseHandler) Get(c *gin.Context) {
 	}
 
 	var expense models.Expense
-	err = h.DB.Get(&expense, "SELECT * FROM expenses WHERE id = $1 AND group_id = $2", expenseID, groupID)
+	err = h.DB.Get(&expense, "SELECT * FROM expenses WHERE id = $1 AND group_id = $2 AND deleted_at IS NULL", expenseID, groupID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Expense not found"})
 		return
@@ -265,7 +265,7 @@ func (h *ExpenseHandler) Update(c *gin.Context) {
 	}
 
 	var oldExpense models.Expense
-	err = h.DB.Get(&oldExpense, "SELECT * FROM expenses WHERE id = $1 AND group_id = $2", expenseID, groupID)
+	err = h.DB.Get(&oldExpense, "SELECT * FROM expenses WHERE id = $1 AND group_id = $2 AND deleted_at IS NULL", expenseID, groupID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Expense not found"})
 		return
@@ -314,7 +314,7 @@ func (h *ExpenseHandler) Update(c *gin.Context) {
 	var expense models.Expense
 	err = tx.Get(&expense,
 		`UPDATE expenses SET paid_by=$1, amount=$2, description=$3, category=$4, date=$5, updated_at=NOW()
-		 WHERE id=$6 AND group_id=$7 RETURNING *`,
+		 WHERE id=$6 AND group_id=$7 AND deleted_at IS NULL RETURNING *`,
 		req.PaidBy, req.Amount, req.Description, req.Category, req.Date, expenseID, groupID,
 	)
 	if err != nil {
@@ -445,7 +445,7 @@ func (h *ExpenseHandler) Delete(c *gin.Context) {
 	}
 
 	var expense models.Expense
-	if err := h.DB.Get(&expense, "SELECT * FROM expenses WHERE id = $1 AND group_id = $2", expenseID, groupID); err != nil {
+	if err := h.DB.Get(&expense, "SELECT * FROM expenses WHERE id = $1 AND group_id = $2 AND deleted_at IS NULL", expenseID, groupID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Expense not found"})
 		return
 	}
@@ -460,12 +460,16 @@ func (h *ExpenseHandler) Delete(c *gin.Context) {
 	actorName := h.userName(userID)
 	summary := fmt.Sprintf("%s deleted %s for %.2f", actorName, expenseLabel(expense.Description), expense.Amount)
 	participants := h.deletedExpenseParticipants(expenseID, userID, expense.PaidBy)
-	if err := h.recordGroupActivity(tx, groupID, &expenseID, userID, "delete", summary, participants); err != nil {
+	activityID, err := h.recordGroupActivityID(tx, groupID, &expenseID, userID, "delete_expense", summary, participants)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete activity"})
 		return
 	}
 
-	result, err := tx.Exec("DELETE FROM expenses WHERE id = $1 AND group_id = $2", expenseID, groupID)
+	result, err := tx.Exec(
+		"UPDATE expenses SET deleted_at = NOW(), deleted_by = $1 WHERE id = $2 AND group_id = $3 AND deleted_at IS NULL",
+		userID, expenseID, groupID,
+	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete expense"})
 		return
@@ -481,18 +485,19 @@ func (h *ExpenseHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Expense deleted"})
+	c.JSON(http.StatusOK, gin.H{"message": "Expense deleted", "activity_id": activityID})
 }
 
 func (h *ExpenseHandler) isMember(groupID, userID int) bool {
 	var count int
-	h.DB.Get(&count, "SELECT COUNT(*) FROM group_members WHERE group_id = $1 AND user_id = $2", groupID, userID)
+	h.DB.Get(&count, `SELECT COUNT(*) FROM group_members gm JOIN groups g ON g.id = gm.group_id
+		WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`, groupID, userID)
 	return count > 0
 }
 
 func (h *ExpenseHandler) expenseInGroup(expenseID, groupID int) bool {
 	var count int
-	h.DB.Get(&count, "SELECT COUNT(*) FROM expenses WHERE id = $1 AND group_id = $2", expenseID, groupID)
+	h.DB.Get(&count, "SELECT COUNT(*) FROM expenses WHERE id = $1 AND group_id = $2 AND deleted_at IS NULL", expenseID, groupID)
 	return count > 0
 }
 
@@ -553,15 +558,24 @@ func (h *ExpenseHandler) recordHistory(tx *sqlx.Tx, expenseID, userID int, actio
 }
 
 func (h *ExpenseHandler) recordGroupActivity(tx *sqlx.Tx, groupID int, expenseID *int, userID int, action, summary string, participants []activityParticipant) error {
+	_, err := h.recordGroupActivityID(tx, groupID, expenseID, userID, action, summary, participants)
+	return err
+}
+
+func (h *ExpenseHandler) recordGroupActivityID(tx *sqlx.Tx, groupID int, expenseID *int, userID int, action, summary string, participants []activityParticipant) (int, error) {
 	var activityID int
-	err := tx.Get(&activityID,
-		"INSERT INTO group_activity (group_id, expense_id, user_id, action, summary) VALUES ($1, $2, $3, $4, $5) RETURNING id",
-		groupID, expenseID, userID, action, summary,
-	)
-	if err != nil {
-		return err
+	query := "INSERT INTO group_activity (group_id, expense_id, user_id, action, summary) VALUES ($1, $2, $3, $4, $5) RETURNING id"
+	if action == "delete_expense" {
+		query = "INSERT INTO group_activity (group_id, expense_id, user_id, action, summary, revert_deadline) VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '30 days') RETURNING id"
 	}
-	return recordActivityParticipants(tx, activityID, participants)
+	err := tx.Get(&activityID, query, groupID, expenseID, userID, action, summary)
+	if err != nil {
+		return 0, err
+	}
+	if err := recordActivityParticipants(tx, activityID, participants); err != nil {
+		return 0, err
+	}
+	return activityID, nil
 }
 
 func recordActivityParticipants(tx *sqlx.Tx, activityID int, participants []activityParticipant) error {

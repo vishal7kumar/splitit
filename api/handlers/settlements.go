@@ -165,7 +165,8 @@ func (h *SettlementHandler) List(c *gin.Context) {
 
 func (h *SettlementHandler) isMember(groupID, userID int) bool {
 	var count int
-	h.DB.Get(&count, "SELECT COUNT(*) FROM group_members WHERE group_id = $1 AND user_id = $2", groupID, userID)
+	h.DB.Get(&count, `SELECT COUNT(*) FROM group_members gm JOIN groups g ON g.id = gm.group_id
+		WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`, groupID, userID)
 	return count > 0
 }
 

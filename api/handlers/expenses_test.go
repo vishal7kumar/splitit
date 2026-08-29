@@ -391,7 +391,7 @@ func TestExpenseCommentValidationAndAccess(t *testing.T) {
 	assertStatus(t, w, http.StatusForbidden)
 }
 
-func TestDeleteExpenseCascadesCommentsAndHistory(t *testing.T) {
+func TestDeleteExpensePreservesCommentsAndHistoryForRestore(t *testing.T) {
 	database := setupTestDB(t)
 	r := setupRouter(database)
 
@@ -414,8 +414,8 @@ func TestDeleteExpenseCascadesCommentsAndHistory(t *testing.T) {
 	var commentCount, historyCount int
 	database.Get(&commentCount, "SELECT COUNT(*) FROM expense_comments WHERE expense_id = $1", expenseID)
 	database.Get(&historyCount, "SELECT COUNT(*) FROM expense_history WHERE expense_id = $1", expenseID)
-	if commentCount != 0 || historyCount != 0 {
-		t.Fatalf("expected cascaded comments/history, got comments=%d history=%d", commentCount, historyCount)
+	if commentCount != 1 || historyCount != 2 {
+		t.Fatalf("expected preserved comments/history, got comments=%d history=%d", commentCount, historyCount)
 	}
 
 	w = doJSON(r, "GET", fmt.Sprintf("/api/groups/%d/activity", groupID), nil, cookies...)
@@ -425,11 +425,11 @@ func TestDeleteExpenseCascadesCommentsAndHistory(t *testing.T) {
 	if len(activity) != 3 {
 		t.Fatalf("expected create, comment, and delete activity, got %d", len(activity))
 	}
-	if activity[0]["action"] != "delete" || !strings.Contains(activity[0]["summary"].(string), "deleted") {
+	if activity[0]["action"] != "delete_expense" || !strings.Contains(activity[0]["summary"].(string), "deleted") {
 		t.Fatalf("expected newest activity to be delete, got %#v", activity[0])
 	}
-	if activity[0]["expense_id"] != nil {
-		t.Fatalf("expected deleted expense activity to clear expense_id, got %#v", activity[0]["expense_id"])
+	if int(activity[0]["expense_id"].(float64)) != expenseID {
+		t.Fatalf("expected deleted expense activity to retain expense_id, got %#v", activity[0]["expense_id"])
 	}
 }
 

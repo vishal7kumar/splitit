@@ -21,11 +21,11 @@ type balanceEntry struct {
 }
 
 type simplifiedDebt struct {
-	From       int     `json:"from"`
-	FromName   string  `json:"from_name"`
-	To         int     `json:"to"`
-	ToName     string  `json:"to_name"`
-	Amount     float64 `json:"amount"`
+	From     int     `json:"from"`
+	FromName string  `json:"from_name"`
+	To       int     `json:"to"`
+	ToName   string  `json:"to_name"`
+	Amount   float64 `json:"amount"`
 }
 
 func (h *BalanceHandler) GroupBalances(c *gin.Context) {
@@ -67,7 +67,7 @@ func (h *BalanceHandler) GroupBalances(c *gin.Context) {
 	var paidRows []amountRow
 	h.DB.Select(&paidRows,
 		`SELECT paid_by AS user_id, COALESCE(SUM(amount), 0) AS total
-		 FROM expenses WHERE group_id = $1 GROUP BY paid_by`, groupID)
+		 FROM expenses WHERE group_id = $1 AND deleted_at IS NULL GROUP BY paid_by`, groupID)
 	for _, r := range paidRows {
 		netBalance[r.UserID] += r.Total
 	}
@@ -78,7 +78,7 @@ func (h *BalanceHandler) GroupBalances(c *gin.Context) {
 		`SELECT es.user_id, COALESCE(SUM(es.share_amount), 0) AS total
 		 FROM expense_splits es
 		 JOIN expenses e ON es.expense_id = e.id
-		 WHERE e.group_id = $1
+		 WHERE e.group_id = $1 AND e.deleted_at IS NULL
 		 GROUP BY es.user_id`, groupID)
 	for _, r := range splitRows {
 		netBalance[r.UserID] -= r.Total
@@ -122,7 +122,8 @@ func (h *BalanceHandler) TotalBalance(c *gin.Context) {
 
 	// Get all groups user belongs to
 	var groupIDs []int
-	h.DB.Select(&groupIDs, "SELECT group_id FROM group_members WHERE user_id = $1", userID)
+	h.DB.Select(&groupIDs, `SELECT gm.group_id FROM group_members gm JOIN groups g ON g.id = gm.group_id
+		WHERE gm.user_id = $1 AND g.deleted_at IS NULL`, userID)
 
 	totalBalance := 0.0
 	type groupBalance struct {
@@ -160,10 +161,10 @@ func (h *BalanceHandler) TotalBalance(c *gin.Context) {
 
 func (h *BalanceHandler) calcUserBalance(groupID, userID int) float64 {
 	var paid float64
-	h.DB.Get(&paid, `SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE group_id = $1 AND paid_by = $2`, groupID, userID)
+	h.DB.Get(&paid, `SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE group_id = $1 AND paid_by = $2 AND deleted_at IS NULL`, groupID, userID)
 
 	var owed float64
-	h.DB.Get(&owed, `SELECT COALESCE(SUM(es.share_amount), 0) FROM expense_splits es JOIN expenses e ON es.expense_id = e.id WHERE e.group_id = $1 AND es.user_id = $2`, groupID, userID)
+	h.DB.Get(&owed, `SELECT COALESCE(SUM(es.share_amount), 0) FROM expense_splits es JOIN expenses e ON es.expense_id = e.id WHERE e.group_id = $1 AND es.user_id = $2 AND e.deleted_at IS NULL`, groupID, userID)
 
 	var settPaid float64
 	h.DB.Get(&settPaid, `SELECT COALESCE(SUM(amount), 0) FROM settlements WHERE group_id = $1 AND paid_by = $2`, groupID, userID)
@@ -176,7 +177,8 @@ func (h *BalanceHandler) calcUserBalance(groupID, userID int) float64 {
 
 func (h *BalanceHandler) isMember(groupID, userID int) bool {
 	var count int
-	h.DB.Get(&count, "SELECT COUNT(*) FROM group_members WHERE group_id = $1 AND user_id = $2", groupID, userID)
+	h.DB.Get(&count, `SELECT COUNT(*) FROM group_members gm JOIN groups g ON g.id = gm.group_id
+		WHERE gm.group_id = $1 AND gm.user_id = $2 AND g.deleted_at IS NULL`, groupID, userID)
 	return count > 0
 }
 
