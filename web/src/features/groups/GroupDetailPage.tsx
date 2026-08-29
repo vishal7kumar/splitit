@@ -8,7 +8,7 @@ import {
   createSettlement,
 } from "../../api/settlements";
 import { useAuth } from "../auth/useAuth";
-import { formatDate } from "../../lib/formatDate";
+import { formatExpenseDate } from "../../lib/formatDate";
 import { formatCurrency } from "../../lib/currency";
 
 export default function GroupDetailPage() {
@@ -442,7 +442,7 @@ export default function GroupDetailPage() {
                             <span className="font-semibold text-gray-700">
                               {formatCurrency(group.currency, exp.amount)}
                             </span>{" "}
-                            &middot; {formatDate(exp.date)}
+                            &middot; {formatExpenseDate(exp.date)}
                           </div>
                         </div>
                         <div className="flex shrink-0 gap-1.5 border-t border-gray-100 pt-2 sm:border-t-0 sm:pt-0 items-center">

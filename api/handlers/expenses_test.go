@@ -271,6 +271,99 @@ func TestUpdateExpenseRecordsHistorySummary(t *testing.T) {
 	}
 }
 
+func TestUpdateExpenseSummaryIgnoresDateRepresentationAndDerivedEqualSplits(t *testing.T) {
+	database := setupTestDB(t)
+	r := setupRouter(database)
+
+	cookies := registerAndLogin(r, "derived-admin@test.com", "pass123", "Derived Admin")
+	registerUser(t, r, "derived-one@test.com", "pass123", "Member One")
+	registerUser(t, r, "derived-two@test.com", "pass123", "Member Two")
+	groupID := createGroup(t, r, cookies, "Derived Split Group")
+	addMember(t, r, cookies, groupID, "derived-one@test.com")
+	addMember(t, r, cookies, groupID, "derived-two@test.com")
+	detail := getGroupDetail(t, r, cookies, groupID)
+	userIDs := []int{
+		memberIDByEmail(t, detail, "derived-admin@test.com"),
+		memberIDByEmail(t, detail, "derived-one@test.com"),
+		memberIDByEmail(t, detail, "derived-two@test.com"),
+	}
+	splits := []map[string]interface{}{
+		{"user_id": userIDs[0]},
+		{"user_id": userIDs[1]},
+		{"user_id": userIDs[2]},
+	}
+
+	resp := createExpense(t, r, cookies, groupID, map[string]interface{}{
+		"amount":      100.0,
+		"description": "Rounding dinner",
+		"date":        "2026-08-20",
+		"split_type":  "equal",
+		"splits":      splits,
+	})
+	expenseID := int(resp["expense"].(map[string]interface{})["id"].(float64))
+
+	w := doJSON(r, "PUT", fmt.Sprintf("/api/groups/%d/expenses/%d", groupID, expenseID), map[string]interface{}{
+		"amount":      101.0,
+		"description": "Rounding dinner",
+		"date":        "2026-08-20",
+		"split_type":  "equal",
+		"splits":      splits,
+	}, cookies...)
+	assertStatus(t, w, http.StatusOK)
+
+	expenseDetail := getExpenseDetail(t, r, cookies, groupID, expenseID)
+	summary := expenseDetail["history"].([]interface{})[0].(map[string]interface{})["summary"].(string)
+	if summary != "Derived Admin changed amount from 100.00 to 101.00" {
+		t.Fatalf("expected only the amount change in history, got %q", summary)
+	}
+}
+
+func TestUpdateExpenseSummaryReportsRealDateAndSplitChanges(t *testing.T) {
+	database := setupTestDB(t)
+	r := setupRouter(database)
+
+	cookies := registerAndLogin(r, "material-admin@test.com", "pass123", "Material Admin")
+	registerUser(t, r, "material-member@test.com", "pass123", "Material Member")
+	groupID := createGroup(t, r, cookies, "Material Change Group")
+	addMember(t, r, cookies, groupID, "material-member@test.com")
+	detail := getGroupDetail(t, r, cookies, groupID)
+	adminID := memberIDByEmail(t, detail, "material-admin@test.com")
+	memberID := memberIDByEmail(t, detail, "material-member@test.com")
+
+	resp := createExpense(t, r, cookies, groupID, map[string]interface{}{
+		"amount":      90.0,
+		"description": "Material dinner",
+		"date":        "2026-08-20",
+		"split_type":  "equal",
+		"splits": []map[string]interface{}{
+			{"user_id": adminID},
+			{"user_id": memberID},
+		},
+	})
+	expenseID := int(resp["expense"].(map[string]interface{})["id"].(float64))
+
+	w := doJSON(r, "PUT", fmt.Sprintf("/api/groups/%d/expenses/%d", groupID, expenseID), map[string]interface{}{
+		"amount":      90.0,
+		"description": "Material dinner",
+		"date":        "2026-08-19",
+		"split_type":  "exact",
+		"splits": []map[string]interface{}{
+			{"user_id": adminID, "share_amount": 70.0},
+			{"user_id": memberID, "share_amount": 20.0},
+		},
+	}, cookies...)
+	assertStatus(t, w, http.StatusOK)
+
+	expenseDetail := getExpenseDetail(t, r, cookies, groupID, expenseID)
+	summary := expenseDetail["history"].([]interface{})[0].(map[string]interface{})["summary"].(string)
+	if !strings.Contains(summary, "date from") || !strings.Contains(summary, "to 2026-08-19") {
+		t.Fatalf("expected the real date change in history, got %q", summary)
+	}
+	if !strings.Contains(summary, "splits") {
+		t.Fatalf("expected the material split change in history, got %q", summary)
+	}
+}
+
 func TestExpenseCommentValidationAndAccess(t *testing.T) {
 	database := setupTestDB(t)
 	r := setupRouter(database)

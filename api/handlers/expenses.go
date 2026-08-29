@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -655,13 +656,15 @@ func (h *ExpenseHandler) updateSummary(actorName string, oldExpense models.Expen
 	if oldExpense.Category != req.Category {
 		changes = append(changes, fmt.Sprintf("category from %s to %s", oldExpense.Category, req.Category))
 	}
-	if oldExpense.Date != req.Date {
-		changes = append(changes, fmt.Sprintf("date from %s to %s", oldExpense.Date, req.Date))
+	oldDate := normalizeExpenseDate(oldExpense.Date)
+	newDate := normalizeExpenseDate(req.Date)
+	if oldDate != newDate {
+		changes = append(changes, fmt.Sprintf("date from %s to %s", oldDate, newDate))
 	}
 	if oldExpense.PaidBy != req.PaidBy {
 		changes = append(changes, fmt.Sprintf("paid by from %s to %s", h.userName(oldExpense.PaidBy), h.userName(req.PaidBy)))
 	}
-	if splitsChanged(oldSplits, newSplits) {
+	if splitsChanged(oldSplits, newSplits, req.SplitType, oldExpense.Amount) {
 		changes = append(changes, "splits")
 	}
 	if len(changes) == 0 {
@@ -670,7 +673,16 @@ func (h *ExpenseHandler) updateSummary(actorName string, oldExpense models.Expen
 	return fmt.Sprintf("%s changed %s", actorName, strings.Join(changes, "; "))
 }
 
-func splitsChanged(oldSplits []models.ExpenseSplit, newSplits []splitEntry) bool {
+func normalizeExpenseDate(value string) string {
+	for _, layout := range []string{"2006-01-02", time.RFC3339} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed.Format("2006-01-02")
+		}
+	}
+	return value
+}
+
+func splitsChanged(oldSplits []models.ExpenseSplit, newSplits []splitEntry, newSplitType string, oldAmount float64) bool {
 	if len(oldSplits) != len(newSplits) {
 		return true
 	}
@@ -679,12 +691,45 @@ func splitsChanged(oldSplits []models.ExpenseSplit, newSplits []splitEntry) bool
 		oldByUser[s.UserID] = math.Round(s.ShareAmount*100) / 100
 	}
 	for _, s := range newSplits {
-		oldAmount, ok := oldByUser[s.UserID]
-		if !ok || oldAmount != math.Round(s.ShareAmount*100)/100 {
+		if _, ok := oldByUser[s.UserID]; !ok {
+			return true
+		}
+	}
+	if strings.EqualFold(newSplitType, "equal") && isEqualAllocation(oldSplits, oldAmount) {
+		return false
+	}
+	for _, s := range newSplits {
+		if oldByUser[s.UserID] != math.Round(s.ShareAmount*100)/100 {
 			return true
 		}
 	}
 	return false
+}
+
+func isEqualAllocation(splits []models.ExpenseSplit, amount float64) bool {
+	entries := make([]splitEntry, len(splits))
+	for i, split := range splits {
+		entries[i] = splitEntry{UserID: split.UserID}
+	}
+	expected, err := calculateShares(amount, "equal", entries)
+	if err != nil {
+		return false
+	}
+
+	actualCents := make([]int, len(splits))
+	expectedCents := make([]int, len(expected))
+	for i := range splits {
+		actualCents[i] = int(math.Round(splits[i].ShareAmount * 100))
+		expectedCents[i] = int(math.Round(expected[i].ShareAmount * 100))
+	}
+	sort.Ints(actualCents)
+	sort.Ints(expectedCents)
+	for i := range actualCents {
+		if actualCents[i] != expectedCents[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func calculateShares(amount float64, splitType string, entries []splitEntry) ([]splitEntry, error) {

@@ -8,7 +8,7 @@ import {
   getExpense,
   type ExpenseSplit,
 } from "../../api/expenses";
-import { formatDate } from "../../lib/formatDate";
+import { formatDate, formatExpenseDate } from "../../lib/formatDate";
 import { useAuth } from "../auth/useAuth";
 import { formatCurrency } from "../../lib/currency";
 
@@ -146,7 +146,7 @@ export default function ExpenseDetailPage() {
           </div>
           <div>
             <dt className="text-xs font-semibold text-gray-400 uppercase">Expense date</dt>
-            <dd className="font-medium text-sm text-gray-800 mt-0.5">{formatDate(expense.date)}</dd>
+            <dd className="font-medium text-sm text-gray-800 mt-0.5">{formatExpenseDate(expense.date)}</dd>
           </div>
           <div>
             <dt className="text-xs font-semibold text-gray-400 uppercase">Added on</dt>

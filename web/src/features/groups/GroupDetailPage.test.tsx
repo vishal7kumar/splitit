@@ -139,7 +139,11 @@ describe("GroupDetailPage", () => {
     expect(await screen.findByText("Monthly Spending Totals")).toBeInTheDocument();
     expect(screen.getByText("Spends by Member")).toBeInTheDocument();
 
-    // Total spending for June 2026 is 100 INR (first available month is June 2026)
+    fireEvent.change(screen.getByLabelText("Month:"), {
+      target: { value: "2026-06" },
+    });
+
+    // Total spending for June 2026 is 100 INR
     expect(screen.getByText("Total Group Spending")).toBeInTheDocument();
     
     const hundredAmounts = screen.getAllByText(/100/);

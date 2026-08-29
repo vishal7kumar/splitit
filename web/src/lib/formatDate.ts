@@ -22,3 +22,36 @@ export function formatDate(dateStr: string): string {
     year: "numeric",
   });
 }
+
+export function formatExpenseDate(dateStr: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (!match) return dateStr;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const date = new Date(year, month, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month ||
+    date.getDate() !== day
+  ) {
+    return dateStr;
+  }
+
+  const now = new Date();
+  if (
+    year === now.getFullYear() &&
+    month === now.getMonth() &&
+    day === now.getDate()
+  ) {
+    return "Today";
+  }
+
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "2-digit",
+    year: "numeric",
+  });
+}
