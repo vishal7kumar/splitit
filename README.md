@@ -47,7 +47,32 @@ The application is deployed using a completely free, persistent production infra
 - Go 1.20+
 - Node.js & npm
 
-### 1. Database
+### Quickstart (All Services)
+Bring up the entire local development environment (PostgreSQL Docker container, Go API, and React UI) with a single command from the project root:
+
+```bash
+./dev.sh
+```
+
+- **Frontend (UI):** [http://localhost:5173](http://localhost:5173)
+- **Backend (API):** [http://localhost:8080](http://localhost:8080)
+- **Database (PostgreSQL):** `localhost:5432` (`db: myapp`, `user: postgres`)
+
+Press `Ctrl+C` in the terminal to gracefully stop the API and UI. To stop the database container as well, run:
+```bash
+./dev.sh down
+```
+
+You can also check service status anytime with:
+```bash
+./dev.sh status
+```
+
+---
+
+### Manual Setup (Step-by-Step)
+
+#### 1. Database
 Start the local PostgreSQL instance using Docker Compose:
 ```bash
 cd db

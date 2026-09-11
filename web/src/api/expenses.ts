@@ -10,6 +10,9 @@ export interface Expense {
   date: string;
   created_at: string;
   updated_at: string;
+  your_share?: number;
+  is_involved?: boolean;
+  splits?: ExpenseSplit[];
 }
 
 export interface ExpenseSplit {

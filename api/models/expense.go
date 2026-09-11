@@ -12,8 +12,11 @@ type Expense struct {
 	Date        string     `db:"date" json:"date"`
 	CreatedAt   time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt   time.Time  `db:"updated_at" json:"updated_at"`
-	DeletedAt   *time.Time `db:"deleted_at" json:"deleted_at,omitempty"`
-	DeletedBy   *int       `db:"deleted_by" json:"deleted_by,omitempty"`
+	DeletedAt   *time.Time     `db:"deleted_at" json:"deleted_at,omitempty"`
+	DeletedBy   *int           `db:"deleted_by" json:"deleted_by,omitempty"`
+	YourShare   *float64       `db:"-" json:"your_share,omitempty"`
+	IsInvolved  *bool          `db:"-" json:"is_involved,omitempty"`
+	Splits      []ExpenseSplit `db:"-" json:"splits,omitempty"`
 }
 
 type ExpenseSplit struct {

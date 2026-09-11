@@ -803,6 +803,17 @@ components:
         updated_at:
           type: string
           format: date-time
+        your_share:
+          type: number
+          format: double
+          description: Share of the expense allocated to the requesting user.
+        is_involved:
+          type: boolean
+          description: Whether the requesting user is the payer or has a split in this expense.
+        splits:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpenseSplit"
     ExpenseSplit:
       type: object
       required: [id, expense_id, user_id, share_amount]

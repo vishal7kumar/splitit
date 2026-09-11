@@ -424,73 +424,116 @@ export default function GroupDetailPage() {
                     </span>
                   </div>
                   <ul className="space-y-3">
-                    {groupObj.items.map((exp: Expense) => (
-                      <li
-                        key={exp.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => navigate(`/groups/${groupId}/expenses/${exp.id}`)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            navigate(`/groups/${groupId}/expenses/${exp.id}`);
-                          }
-                        }}
-                        className="flex flex-col gap-3 border border-gray-200 bg-white rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-gray-300 sm:flex-row sm:items-center sm:justify-between transition-all duration-200 shadow-sm"
-                      >
-                        <div className="min-w-0">
-                          <span className="font-semibold break-words text-gray-900 text-sm">
-                            {exp.description || "Untitled"}
-                          </span>
-                          <div className="break-words text-xs text-gray-500 mt-1 font-medium">
-                            <span className="font-semibold text-gray-700">
-                              {exp.paid_by === user?.id ? "You" : (memberMap[exp.paid_by]?.name || "Unknown")}
-                            </span>{" "}
-                            paid{" "}
-                            <span className="font-semibold text-gray-700">
-                              {formatCurrency(group.currency, exp.amount)}
-                            </span>{" "}
-                            &middot; {formatExpenseDate(exp.date)}
+                    {groupObj.items.map((exp: Expense) => {
+                      const isPayer = exp.paid_by === user?.id;
+                      const mySplit = exp.splits?.find((s) => s.user_id === user?.id);
+                      const myShare = exp.your_share ?? (mySplit?.share_amount ?? 0);
+                      const isInvolved =
+                        exp.is_involved !== undefined
+                          ? exp.is_involved
+                          : (isPayer || (mySplit !== undefined && mySplit.share_amount > 0));
+                      const amountLent = isPayer ? exp.amount - myShare : 0;
+                      const displayAmount = isPayer
+                        ? (amountLent > 0 ? amountLent : exp.amount)
+                        : myShare;
+
+                      return (
+                        <li
+                          key={exp.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => navigate(`/groups/${groupId}/expenses/${exp.id}`)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              navigate(`/groups/${groupId}/expenses/${exp.id}`);
+                            }
+                          }}
+                          className="flex flex-col gap-3 border border-gray-200 bg-white rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-gray-300 sm:flex-row sm:items-center sm:justify-between transition-all duration-200 shadow-sm"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <span className="font-semibold break-words text-gray-900 text-sm">
+                              {exp.description || "Untitled"}
+                            </span>
+                            <div className="break-words text-xs text-gray-500 mt-1 font-medium">
+                              {!isInvolved ? (
+                                <>
+                                  <span className="text-gray-500 font-medium">You are not involved</span>
+                                  {" "}&middot; {formatExpenseDate(exp.date)}
+                                </>
+                              ) : (
+                                <>
+                                  <span className="font-semibold text-gray-700">
+                                    {isPayer ? "You" : (memberMap[exp.paid_by]?.name || "Unknown")}
+                                  </span>{" "}
+                                  paid{" "}
+                                  <span className="font-semibold text-gray-700">
+                                    {formatCurrency(group.currency, exp.amount)}
+                                  </span>{" "}
+                                  &middot; {formatExpenseDate(exp.date)}
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex shrink-0 gap-1.5 border-t border-gray-100 pt-2 sm:border-t-0 sm:pt-0 items-center">
-                          <Link
-                            to={`/groups/${groupId}/expenses/${exp.id}/edit`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="p-1.5 text-gray-500 hover:text-blue-650 hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
-                            title="Edit"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
-                            </svg>
-                          </Link>
-                          <button
-                            disabled={delExpense.isPending}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm("Delete this expense? You can restore it from Activity for 30 days."))
-                                delExpense.mutate(exp.id);
-                            }}
-                            className="p-1.5 text-gray-500 hover:text-red-650 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
-                            title="Delete"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              strokeWidth={2}
-                              stroke="currentColor"
-                              className="w-4 h-4"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="m14.74 9-.346 9m-4.788 0L9 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </li>
-                    ))}
+                          <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 sm:gap-4 border-t border-gray-100 pt-2 sm:border-t-0 sm:pt-0">
+                            {isInvolved && (
+                              <div className="text-right shrink-0">
+                                <span
+                                  className={`block text-[11px] sm:text-xs font-semibold uppercase tracking-wider ${
+                                    isPayer ? "text-green-600" : "text-red-600"
+                                  }`}
+                                >
+                                  {isPayer ? "you paid" : "you borrowed"}
+                                </span>
+                                <span
+                                  className={`block font-bold text-sm sm:text-base ${
+                                    isPayer ? "text-green-600" : "text-red-600"
+                                  }`}
+                                >
+                                  {formatCurrency(group.currency, displayAmount)}
+                                </span>
+                              </div>
+                            )}
+                            <div className={`flex shrink-0 gap-1.5 items-center ${!isInvolved ? "ml-auto sm:ml-0" : ""}`}>
+                              <Link
+                                to={`/groups/${groupId}/expenses/${exp.id}/edit`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="p-1.5 text-gray-500 hover:text-blue-650 hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
+                                title="Edit"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                                </svg>
+                              </Link>
+                              <button
+                                disabled={delExpense.isPending}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm("Delete this expense? You can restore it from Activity for 30 days."))
+                                    delExpense.mutate(exp.id);
+                                }}
+                                className="p-1.5 text-gray-500 hover:text-red-650 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
+                                title="Delete"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  strokeWidth={2}
+                                  stroke="currentColor"
+                                  className="w-4 h-4"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="m14.74 9-.346 9m-4.788 0L9 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               ))}

@@ -204,6 +204,46 @@ func (h *ExpenseHandler) List(c *gin.Context) {
 	if expenses == nil {
 		expenses = []models.Expense{}
 	}
+
+	if len(expenses) > 0 {
+		expenseIDs := make([]int, len(expenses))
+		for i, exp := range expenses {
+			expenseIDs[i] = exp.ID
+		}
+
+		querySplits, splitArgs, err := sqlx.In("SELECT * FROM expense_splits WHERE expense_id IN (?)", expenseIDs)
+		if err == nil {
+			querySplits = h.DB.Rebind(querySplits)
+			var allSplits []models.ExpenseSplit
+			if err := h.DB.Select(&allSplits, querySplits, splitArgs...); err == nil {
+				splitsByExpense := make(map[int][]models.ExpenseSplit)
+				for _, s := range allSplits {
+					splitsByExpense[s.ExpenseID] = append(splitsByExpense[s.ExpenseID], s)
+				}
+				for i := range expenses {
+					expSplits := splitsByExpense[expenses[i].ID]
+					if expSplits == nil {
+						expSplits = []models.ExpenseSplit{}
+					}
+					expenses[i].Splits = expSplits
+
+					var yourShare float64
+					inSplits := false
+					for _, s := range expSplits {
+						if s.UserID == userID {
+							yourShare = s.ShareAmount
+							inSplits = true
+							break
+						}
+					}
+					isInvolved := expenses[i].PaidBy == userID || inSplits
+					expenses[i].YourShare = &yourShare
+					expenses[i].IsInvolved = &isInvolved
+				}
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, expenses)
 }
 

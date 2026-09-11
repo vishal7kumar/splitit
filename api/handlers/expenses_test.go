@@ -539,3 +539,89 @@ func TestDeleteExpense(t *testing.T) {
 		t.Fatalf("expected 0 expenses after delete, got %d", len(list))
 	}
 }
+
+func TestListExpensesWithInvolvement(t *testing.T) {
+	database := setupTestDB(t)
+	r := setupRouter(database)
+
+	aliceCookies := registerAndLogin(r, "alice-involvement@test.com", "pass123", "Alice")
+	bobCookies := registerAndLogin(r, "bob-involvement@test.com", "pass123", "Bob")
+	charlieCookies := registerAndLogin(r, "charlie-involvement@test.com", "pass123", "Charlie")
+
+	w := doJSON(r, "POST", "/api/groups", map[string]string{"name": "Involvement Group"}, aliceCookies...)
+	var group map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &group)
+	groupID := int(group["id"].(float64))
+
+	// Add Bob and Charlie to group
+	doJSON(r, "POST", fmt.Sprintf("/api/groups/%d/members", groupID), map[string]string{"email": "bob-involvement@test.com"}, aliceCookies...)
+	doJSON(r, "POST", fmt.Sprintf("/api/groups/%d/members", groupID), map[string]string{"email": "charlie-involvement@test.com"}, aliceCookies...)
+
+	w = doJSON(r, "GET", fmt.Sprintf("/api/groups/%d", groupID), nil, aliceCookies...)
+	var detail map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &detail)
+	members := detail["members"].([]interface{})
+
+	var aliceID, bobID int
+	for _, m := range members {
+		mMap := m.(map[string]interface{})
+		if mMap["email"] == "alice-involvement@test.com" {
+			aliceID = int(mMap["user_id"].(float64))
+		} else if mMap["email"] == "bob-involvement@test.com" {
+			bobID = int(mMap["user_id"].(float64))
+		}
+	}
+
+	// Alice creates an expense of 100 split equally between Alice and Bob (Charlie is not involved)
+	doJSON(r, "POST", fmt.Sprintf("/api/groups/%d/expenses", groupID), map[string]interface{}{
+		"amount": 100.0, "description": "Alice & Bob Lunch", "split_type": "equal",
+		"splits": []map[string]interface{}{{"user_id": aliceID}, {"user_id": bobID}},
+	}, aliceCookies...)
+
+	// Alice queries expenses
+	w = doJSON(r, "GET", fmt.Sprintf("/api/groups/%d/expenses", groupID), nil, aliceCookies...)
+	var aliceExpenses []map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &aliceExpenses)
+	if len(aliceExpenses) != 1 {
+		t.Fatalf("expected 1 expense for Alice, got %d", len(aliceExpenses))
+	}
+	if !aliceExpenses[0]["is_involved"].(bool) {
+		t.Errorf("expected Alice to be involved")
+	}
+	if aliceExpenses[0]["your_share"].(float64) != 50.0 {
+		t.Errorf("expected Alice's share to be 50.0, got %v", aliceExpenses[0]["your_share"])
+	}
+	splits := aliceExpenses[0]["splits"].([]interface{})
+	if len(splits) != 2 {
+		t.Errorf("expected 2 splits, got %d", len(splits))
+	}
+
+	// Bob queries expenses
+	w = doJSON(r, "GET", fmt.Sprintf("/api/groups/%d/expenses", groupID), nil, bobCookies...)
+	var bobExpenses []map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &bobExpenses)
+	if len(bobExpenses) != 1 {
+		t.Fatalf("expected 1 expense for Bob, got %d", len(bobExpenses))
+	}
+	if !bobExpenses[0]["is_involved"].(bool) {
+		t.Errorf("expected Bob to be involved")
+	}
+	if bobExpenses[0]["your_share"].(float64) != 50.0 {
+		t.Errorf("expected Bob's share to be 50.0, got %v", bobExpenses[0]["your_share"])
+	}
+
+	// Charlie queries expenses
+	w = doJSON(r, "GET", fmt.Sprintf("/api/groups/%d/expenses", groupID), nil, charlieCookies...)
+	var charlieExpenses []map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &charlieExpenses)
+	if len(charlieExpenses) != 1 {
+		t.Fatalf("expected 1 expense for Charlie, got %d", len(charlieExpenses))
+	}
+	if charlieExpenses[0]["is_involved"].(bool) {
+		t.Errorf("expected Charlie NOT to be involved")
+	}
+	if charlieExpenses[0]["your_share"].(float64) != 0.0 {
+		t.Errorf("expected Charlie's share to be 0.0, got %v", charlieExpenses[0]["your_share"])
+	}
+}
+

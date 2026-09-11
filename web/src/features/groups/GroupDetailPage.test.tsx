@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import GroupDetailPage from "./GroupDetailPage";
 import { getGroupBalances } from "../../api/settlements";
+import { listExpenses } from "../../api/expenses";
 
 vi.mock("../auth/useAuth", () => ({
   useAuth: () => ({ user: { id: 1, name: "Admin", email: "admin@test.com" } }),
@@ -168,4 +169,83 @@ describe("GroupDetailPage", () => {
     expect(screen.getByText(/120.50/)).toBeInTheDocument();
     expect(screen.getByText("(others owe you)")).toBeInTheDocument();
   });
+
+  it("renders transaction indicator 'you paid' in green when user is the payer", async () => {
+    vi.mocked(listExpenses).mockResolvedValueOnce([
+      {
+        id: 10,
+        group_id: 1,
+        paid_by: 1,
+        amount: 100,
+        description: "Dinner with team",
+        category: "food",
+        date: "2026-06-10",
+        created_at: "2026-06-10T12:00:00Z",
+        updated_at: "2026-06-10T12:00:00Z",
+        your_share: 25,
+        is_involved: true,
+      },
+    ]);
+
+    renderWithProviders();
+
+    expect(await screen.findByText("Dinner with team")).toBeInTheDocument();
+    const paidLabel = screen.getByText("you paid");
+    expect(paidLabel).toBeInTheDocument();
+    expect(paidLabel).toHaveClass("text-green-600");
+    // amount lent = 100 - 25 = 75
+    expect(screen.getByText(/75/)).toBeInTheDocument();
+  });
+
+  it("renders transaction indicator 'you borrowed' in red when another user paid and user has a share", async () => {
+    vi.mocked(listExpenses).mockResolvedValueOnce([
+      {
+        id: 11,
+        group_id: 1,
+        paid_by: 2,
+        amount: 80,
+        description: "Movie tickets",
+        category: "entertainment",
+        date: "2026-06-11",
+        created_at: "2026-06-11T12:00:00Z",
+        updated_at: "2026-06-11T12:00:00Z",
+        your_share: 40,
+        is_involved: true,
+      },
+    ]);
+
+    renderWithProviders();
+
+    expect(await screen.findByText("Movie tickets")).toBeInTheDocument();
+    const borrowedLabel = screen.getByText("you borrowed");
+    expect(borrowedLabel).toBeInTheDocument();
+    expect(borrowedLabel).toHaveClass("text-red-600");
+    expect(screen.getByText(/40/)).toBeInTheDocument();
+  });
+
+  it("renders 'You are not involved' instead of 'someone paid x' when user is not involved", async () => {
+    vi.mocked(listExpenses).mockResolvedValueOnce([
+      {
+        id: 12,
+        group_id: 1,
+        paid_by: 2,
+        amount: 200,
+        description: "Concert tickets",
+        category: "entertainment",
+        date: "2026-06-12",
+        created_at: "2026-06-12T12:00:00Z",
+        updated_at: "2026-06-12T12:00:00Z",
+        your_share: 0,
+        is_involved: false,
+      },
+    ]);
+
+    renderWithProviders();
+
+    expect(await screen.findByText("Concert tickets")).toBeInTheDocument();
+    expect(screen.getByText("You are not involved")).toBeInTheDocument();
+    expect(screen.queryByText("you paid")).not.toBeInTheDocument();
+    expect(screen.queryByText("you borrowed")).not.toBeInTheDocument();
+  });
 });
+
