@@ -545,31 +545,31 @@ export default function GroupDetailPage() {
                         return (
                           <li
                             key={`settlement-${txn.id}`}
-                            className="flex flex-col gap-3 border border-emerald-200/80 dark:border-emerald-800/60 bg-gradient-to-r from-emerald-50/40 dark:from-emerald-950/30 via-white dark:via-gray-900 to-white dark:to-gray-900 rounded-xl p-4 sm:flex-row sm:items-center sm:justify-between transition-all duration-200 shadow-sm border-l-4 border-l-emerald-500 dark:border-l-emerald-400"
+                            className="flex items-center justify-between gap-2.5 sm:gap-4 border border-emerald-200/80 dark:border-emerald-800/60 bg-gradient-to-r from-emerald-50/40 dark:from-emerald-950/30 via-white dark:via-gray-900 to-white dark:to-gray-900 rounded-xl p-3 sm:p-4 transition-all duration-200 shadow-sm border-l-4 border-l-emerald-500 dark:border-l-emerald-400"
                           >
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0 shadow-xs">
+                            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0 shadow-xs">
                                 <svg
                                   xmlns="http://www.w3.org/2000/svg"
                                   fill="none"
                                   viewBox="0 0 24 24"
                                   strokeWidth={2.5}
                                   stroke="currentColor"
-                                  className="w-4 h-4"
+                                  className="w-3.5 h-3.5 sm:w-4 sm:h-4"
                                 >
                                   <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                                 </svg>
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="font-semibold break-words text-gray-900 dark:text-white text-sm flex items-center gap-2 flex-wrap">
+                                <div className="font-semibold break-words text-gray-900 dark:text-white text-sm flex items-center gap-1.5 sm:gap-2 flex-wrap">
                                   <span>
                                     {payerName} paid {recipientName}
                                   </span>
-                                  <span className="inline-flex items-center rounded-md bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 uppercase tracking-wider">
+                                  <span className="inline-flex items-center rounded-md bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 uppercase tracking-wider">
                                     Settlement
                                   </span>
                                 </div>
-                                <div className="break-words text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">
+                                <div className="break-words text-xs text-gray-500 dark:text-gray-400 mt-0.5 sm:mt-1 font-medium">
                                   {!isInvolved ? (
                                     <>
                                       <span className="text-gray-400 dark:text-gray-500 font-medium">You were not involved</span>
@@ -584,13 +584,13 @@ export default function GroupDetailPage() {
                               </div>
                             </div>
 
-                            <div className="flex shrink-0 items-center justify-end gap-3 sm:gap-4 border-t border-gray-100 dark:border-gray-800 pt-2 sm:border-t-0 sm:pt-0">
+                            <div className="flex shrink-0 items-center justify-end">
                               {isInvolved && (
                                 <div className="text-right shrink-0">
-                                  <span className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-green-600 dark:text-emerald-400">
+                                  <span className="block text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-green-600 dark:text-emerald-400">
                                     {isPayer ? "you paid" : "you received"}
                                   </span>
-                                  <span className="block font-bold text-sm sm:text-base text-green-600 dark:text-emerald-400">
+                                  <span className="block font-bold text-xs sm:text-sm md:text-base text-green-600 dark:text-emerald-400">
                                     {isReceiver ? "+" : ""}{formatCurrency(group.currency, txn.amount)}
                                   </span>
                                 </div>
@@ -625,13 +625,13 @@ export default function GroupDetailPage() {
                               navigate(`/groups/${groupId}/expenses/${exp.id}`);
                             }
                           }}
-                          className="flex flex-col gap-3 border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700 sm:flex-row sm:items-center sm:justify-between transition-all duration-200 shadow-sm"
+                          className="flex items-center justify-between gap-2.5 sm:gap-4 border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-xl p-3 sm:p-4 cursor-pointer hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-200 shadow-sm"
                         >
                           <div className="min-w-0 flex-1">
-                            <span className="font-semibold break-words text-gray-900 dark:text-white text-sm">
+                            <span className="font-semibold break-words text-gray-900 dark:text-white text-sm block">
                               {exp.description || "Untitled"}
                             </span>
-                            <div className="break-words text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">
+                            <div className="break-words text-xs text-gray-500 dark:text-gray-400 mt-0.5 sm:mt-1 font-medium">
                               {!isInvolved ? (
                                 <>
                                   <span className="text-gray-500 dark:text-gray-400 font-medium">You are not involved</span>
@@ -651,18 +651,18 @@ export default function GroupDetailPage() {
                               )}
                             </div>
                           </div>
-                          <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 sm:gap-4 border-t border-gray-100 dark:border-gray-800 pt-2 sm:border-t-0 sm:pt-0">
+                          <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3.5">
                             {isInvolved && (
                               <div className="text-right shrink-0">
                                 <span
-                                  className={`block text-[11px] sm:text-xs font-semibold uppercase tracking-wider ${
+                                  className={`block text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${
                                     isPayer ? "text-green-600 dark:text-emerald-400" : "text-red-600 dark:text-rose-400"
                                   }`}
                                 >
                                   {isPayer ? "you paid" : "you borrowed"}
                                 </span>
                                 <span
-                                  className={`block font-bold text-sm sm:text-base ${
+                                  className={`block font-bold text-xs sm:text-sm md:text-base ${
                                     isPayer ? "text-green-600 dark:text-emerald-400" : "text-red-600 dark:text-rose-400"
                                   }`}
                                 >
@@ -670,14 +670,14 @@ export default function GroupDetailPage() {
                                 </span>
                               </div>
                             )}
-                            <div className={`flex shrink-0 gap-1.5 items-center ${!isInvolved ? "ml-auto sm:ml-0" : ""}`}>
+                            <div className={`flex shrink-0 gap-1 sm:gap-1.5 items-center ${!isInvolved ? "ml-auto" : ""}`}>
                               <Link
                                 to={`/groups/${groupId}/expenses/${exp.id}/edit`}
                                 onClick={(e) => e.stopPropagation()}
-                                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-all cursor-pointer"
+                                className="p-1 sm:p-1.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-all cursor-pointer"
                                 title="Edit"
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 sm:w-4 sm:h-4">
                                   <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
                                 </svg>
                               </Link>
@@ -688,7 +688,7 @@ export default function GroupDetailPage() {
                                   if (confirm("Delete this expense? You can restore it from Activity for 30 days."))
                                     delExpense.mutate(exp.id);
                                 }}
-                                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-950/40 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
+                                className="p-1 sm:p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-950/40 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
                                 title="Delete"
                               >
                                 <svg
@@ -697,7 +697,7 @@ export default function GroupDetailPage() {
                                   viewBox="0 0 24 24"
                                   strokeWidth={2}
                                   stroke="currentColor"
-                                  className="w-4 h-4"
+                                  className="w-3.5 h-3.5 sm:w-4 sm:h-4"
                                 >
                                   <path
                                     strokeLinecap="round"
