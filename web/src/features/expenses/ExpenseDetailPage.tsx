@@ -67,7 +67,11 @@ export default function ExpenseDetailPage() {
   }
 
   if (groupLoading || expenseLoading || !groupData || !expenseData) {
-    return <p className="text-gray-500">Loading...</p>;
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500 text-sm">Loading expense details...</p>
+      </div>
+    );
   }
 
   const { group, members } = groupData;
@@ -107,19 +111,19 @@ export default function ExpenseDetailPage() {
               {expense.description || "Untitled expense"}
             </h1>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-sm text-gray-500">
-              <span className="inline-block text-[10px] bg-gray-100 text-gray-600 rounded px-1.5 py-0.5 font-medium uppercase tracking-wider">
-                {expense.category}
-              </span>
-              <span>&middot;</span>
-              <span className="font-semibold text-gray-800">
+              <span className="text-xl font-extrabold text-gray-900">
                 {formatCurrency(group.currency, expense.amount)}
               </span>
+              <span>&middot;</span>
+              <span>Paid by <span className="font-semibold text-gray-800">{payerName}</span></span>
+              <span>&middot;</span>
+              <span>{formatExpenseDate(expense.date)}</span>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Link
               to={`/groups/${groupId}/expenses/${expenseId}/edit`}
-              className="text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-semibold shadow-sm transition-all duration-200 cursor-pointer"
+              className="text-xs sm:text-sm bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-lg font-semibold shadow-sm transition-all duration-200 cursor-pointer"
             >
               Edit
             </Link>
@@ -129,7 +133,7 @@ export default function ExpenseDetailPage() {
               onClick={() => {
                 if (confirm("Delete this expense? You can restore it from Activity for 30 days.")) delExpense.mutate();
               }}
-              className="text-xs sm:text-sm border border-red-200 text-red-600 hover:border-red-300 px-3 py-1.5 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
+              className="text-xs sm:text-sm border border-red-200 text-red-600 hover:border-red-300 px-3.5 py-1.5 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-all duration-200 cursor-pointer font-medium"
             >
               {delExpense.isPending ? "Deleting..." : "Delete"}
             </button>
@@ -139,22 +143,22 @@ export default function ExpenseDetailPage() {
 
       <section className="mb-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
         <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-2 mb-4">Details</h2>
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-4 text-sm">
+        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           <div>
-            <dt className="text-xs font-semibold text-gray-400 uppercase">Paid by</dt>
-            <dd className="font-medium text-sm text-gray-800 mt-0.5">{payerName}</dd>
+            <dt className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Paid by</dt>
+            <dd className="font-semibold text-sm text-gray-900 mt-0.5">{payerName}</dd>
           </div>
           <div>
-            <dt className="text-xs font-semibold text-gray-400 uppercase">Expense date</dt>
-            <dd className="font-medium text-sm text-gray-800 mt-0.5">{formatExpenseDate(expense.date)}</dd>
+            <dt className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Expense date</dt>
+            <dd className="font-semibold text-sm text-gray-900 mt-0.5">{formatExpenseDate(expense.date)}</dd>
           </div>
           <div>
-            <dt className="text-xs font-semibold text-gray-400 uppercase">Added on</dt>
-            <dd className="font-medium text-sm text-gray-800 mt-0.5">{formatDate(expense.created_at)}</dd>
+            <dt className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Added on</dt>
+            <dd className="font-semibold text-sm text-gray-900 mt-0.5">{formatDate(expense.created_at)}</dd>
           </div>
           <div>
-            <dt className="text-xs font-semibold text-gray-400 uppercase">Updated on</dt>
-            <dd className="font-medium text-sm text-gray-800 mt-0.5">{formatDate(expense.updated_at)}</dd>
+            <dt className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Updated on</dt>
+            <dd className="font-semibold text-sm text-gray-900 mt-0.5">{formatDate(expense.updated_at)}</dd>
           </div>
         </dl>
       </section>
@@ -162,17 +166,25 @@ export default function ExpenseDetailPage() {
       <section className="mb-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
         <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-2 mb-2">Who owes</h2>
         <ul className="divide-y divide-gray-100">
-          {splits.map((split: ExpenseSplit) => (
-            <li
-              key={split.id}
-              className="flex items-center justify-between py-3 text-sm text-gray-700"
-            >
-              <span className="font-medium">{split.user_id === user?.id ? "You" : (memberMap[split.user_id]?.name || "Unknown")}</span>
-              <span className="font-bold text-gray-900">
-                {formatCurrency(group.currency, split.share_amount)}
-              </span>
-            </li>
-          ))}
+          {splits.map((split: ExpenseSplit) => {
+            const memberName = split.user_id === user?.id ? "You" : (memberMap[split.user_id]?.name || "Unknown");
+            return (
+              <li
+                key={split.id}
+                className="flex items-center justify-between py-3 text-sm"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-[10px] font-bold select-none">
+                    {memberName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
+                  </div>
+                  <span className="font-medium text-gray-800">{memberName}</span>
+                </div>
+                <span className="font-bold text-gray-900">
+                  {formatCurrency(group.currency, split.share_amount)}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </section>
 
@@ -202,13 +214,17 @@ export default function ExpenseDetailPage() {
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             placeholder="Add a comment..."
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 min-h-24"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 min-h-24 shadow-xs"
           />
-          {error && <p className="text-red-600 text-xs font-semibold mt-1">{error}</p>}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-xs font-medium mt-2">
+              {error}
+            </div>
+          )}
           <button
             type="submit"
             disabled={addComment.isPending}
-            className="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold disabled:opacity-60 transition-all duration-200 cursor-pointer shadow-sm"
+            className="mt-3 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold disabled:opacity-60 transition-all duration-200 cursor-pointer shadow-sm"
           >
             {addComment.isPending ? "Adding..." : "Add comment"}
           </button>
@@ -220,8 +236,8 @@ export default function ExpenseDetailPage() {
           <ul className="space-y-3 mt-4 border-t border-gray-100 pt-4">
             {comments.map((item) => (
               <li key={item.id} className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-sm shadow-2xs space-y-1">
-                <div className="flex justify-between gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                  <span className="text-gray-600">{item.user_name}</span>
+                <div className="flex justify-between items-center gap-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                  <span className="text-gray-700 font-semibold">{item.user_name}</span>
                   <span>{formatDate(item.created_at)}</span>
                 </div>
                 <p className="whitespace-pre-wrap text-gray-700 leading-relaxed text-sm mt-1">{item.body}</p>

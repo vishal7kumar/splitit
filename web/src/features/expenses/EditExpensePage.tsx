@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getGroup, type GroupMember } from "../../api/groups";
 import {
@@ -19,8 +19,6 @@ const splitTypeLabels: Record<SplitType, string> = {
   percentage: "Percentage",
   shares: "Shares",
 };
-
-
 
 export default function EditExpensePage() {
   const { id, eid } = useParams<{ id: string; eid: string }>();
@@ -157,34 +155,47 @@ export default function EditExpensePage() {
     );
   }
 
-  if (!groupData || !expenseData)
-    return <p className="text-gray-500">Loading...</p>;
+  if (!groupData || !expenseData) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500 text-sm">Loading expense details...</p>
+      </div>
+    );
+  }
 
-  const { members } = groupData;
-  const currencySymbol = currencySymbols[groupData.group.currency] || "₹";
+  const { members, group } = groupData;
+  const currencySymbol = currencySymbols[group.currency] || "₹";
 
   return (
     <div className="max-w-lg mx-auto px-1 sm:px-0">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => navigate(`/groups/${groupId}`)}
-            className="inline-flex items-center justify-center p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
-            aria-label="Back"
+      {/* Back to Group Link */}
+      <div className="mb-4">
+        <Link
+          to={`/groups/${groupId}`}
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors font-medium cursor-pointer"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+            className="w-4 h-4"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2.5}
-              stroke="currentColor"
-              className="w-5 h-5"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-            </svg>
-          </button>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
+            />
+          </svg>
+          Back to {group.name}
+        </Link>
+      </div>
+
+      <div className="flex items-center justify-between mb-6">
+        <div>
           <h1 className="text-2xl font-bold text-gray-900">Edit Expense</h1>
+          <p className="mt-1 text-sm text-gray-500">Update details and splits for this expense.</p>
         </div>
         <button
           type="submit"
@@ -215,67 +226,78 @@ export default function EditExpensePage() {
         onSubmit={handleSubmit}
         className="bg-white border border-gray-200 rounded-xl p-5 sm:p-6 shadow-sm space-y-5"
       >
-        {error && <p className="text-red-600 text-xs font-semibold">{error}</p>}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-lg text-xs font-medium">
+            {error}
+          </div>
+        )}
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1">Amount</label>
-          <input
-            type="number"
-            step="any"
-            placeholder="0.00"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200"
-          />
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Amount</label>
+          <div className="relative">
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 font-semibold text-sm select-none">
+              {currencySymbol}
+            </span>
+            <input
+              type="number"
+              step="any"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+              className="w-full pl-8 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 shadow-xs"
+            />
+          </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1">Description</label>
+          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Description</label>
           <input
             type="text"
             placeholder="e.g. Dinner, Groceries"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 shadow-xs"
           />
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1">Date</label>
-          <input
-            type="date"
-            value={date}
-            max={new Date().toISOString().split("T")[0]}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 cursor-pointer"
-          />
-        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Date</label>
+            <input
+              type="date"
+              value={date}
+              max={new Date().toISOString().split("T")[0]}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 cursor-pointer shadow-xs"
+            />
+          </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1">Paid by</label>
-          <select
-            value={paidBy}
-            onChange={(e) => setPaidBy(Number(e.target.value))}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 cursor-pointer"
-          >
-            {members.map((m: GroupMember) => (
-              <option key={m.user_id} value={m.user_id}>
-                {m.user_id === user?.id ? "You" : m.name}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Paid by</label>
+            <select
+              value={paidBy}
+              onChange={(e) => setPaidBy(Number(e.target.value))}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 cursor-pointer shadow-xs"
+            >
+              {members.map((m: GroupMember) => (
+                <option key={m.user_id} value={m.user_id}>
+                  {m.user_id === user?.id ? "You" : m.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">Split type</label>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {(["equal", "exact", "percentage", "shares"] as const).map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setSplitType(t)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                className={`py-2 px-3 rounded-lg text-xs font-semibold text-center transition-all duration-200 cursor-pointer ${
                   splitType === t
                     ? "bg-blue-600 text-white shadow-sm"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -299,88 +321,104 @@ export default function EditExpensePage() {
             </button>
           </div>
 
-          <div className="space-y-1">
-            {members.map((m: GroupMember) => (
-              <div
-                key={m.user_id}
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50/50 transition-colors"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedMembers.includes(m.user_id)}
-                  onChange={() => toggleMember(m.user_id)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 transition-all cursor-pointer"
-                />
-                <span className="min-w-0 flex-1 break-words text-sm text-gray-700 font-medium">
-                  {m.user_id === user?.id ? "You" : m.name}
-                </span>
-
-                {splitType === "exact" && selectedMembers.includes(m.user_id) && (
-                  <div className="flex w-28 items-center rounded-lg border border-gray-300 bg-white text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
-                    <span className="pl-2.5 text-gray-400 font-semibold select-none">
-                      {currencySymbol}
+          <div className="space-y-2">
+            {members.map((m: GroupMember) => {
+              const isSelected = selectedMembers.includes(m.user_id);
+              return (
+                <div
+                  key={m.user_id}
+                  className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all ${
+                    isSelected
+                      ? "bg-white border-gray-200 shadow-2xs"
+                      : "bg-gray-50/50 border-gray-100 text-gray-400"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleMember(m.user_id)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 transition-all cursor-pointer"
+                  />
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold select-none shrink-0 ${
+                        isSelected ? "bg-blue-100 text-blue-700" : "bg-gray-200 text-gray-500"
+                      }`}
+                    >
+                      {m.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
+                    </div>
+                    <span className={`break-words text-sm font-medium ${isSelected ? "text-gray-900" : "text-gray-500"}`}>
+                      {m.user_id === user?.id ? "You" : m.name}
                     </span>
-                    <input
-                      type="number"
-                      step="any"
-                      placeholder="0.00"
-                      value={exactAmounts[m.user_id] || ""}
-                      onChange={(e) =>
-                        setExactAmounts((p) => ({
-                          ...p,
-                          [m.user_id]: e.target.value,
-                        }))
-                      }
-                      className="min-w-0 flex-1 px-2 py-1 outline-none text-right text-sm rounded-r-lg"
-                    />
                   </div>
-                )}
-                {splitType === "percentage" && selectedMembers.includes(m.user_id) && (
-                  <div className="flex w-24 items-center rounded-lg border border-gray-300 bg-white text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
-                    <input
-                      type="number"
-                      step="any"
-                      placeholder="0"
-                      value={percentages[m.user_id] || ""}
-                      onChange={(e) =>
-                        setPercentages((p) => ({
-                          ...p,
-                          [m.user_id]: e.target.value,
-                        }))
-                      }
-                      className="min-w-0 flex-1 px-2.5 py-1 outline-none text-right text-sm rounded-l-lg"
-                    />
-                    <span className="pr-2.5 text-gray-400 font-semibold select-none">%</span>
-                  </div>
-                )}
-                {splitType === "shares" && selectedMembers.includes(m.user_id) && (
-                  <div className="flex w-32 items-center rounded-lg border border-gray-300 bg-white text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
-                    <input
-                      type="number"
-                      step="any"
-                      placeholder="1"
-                      value={shares[m.user_id] || ""}
-                      onChange={(e) =>
-                        setShares((p) => ({
-                          ...p,
-                          [m.user_id]: e.target.value,
-                        }))
-                      }
-                      className="min-w-0 flex-1 px-2.5 py-1 outline-none text-right text-sm rounded-l-lg"
-                    />
-                    <span className="pr-2.5 text-gray-400 font-semibold select-none text-xs">shares</span>
-                  </div>
-                )}
-              </div>
-            ))}
+
+                  {splitType === "exact" && isSelected && (
+                    <div className="flex w-28 items-center rounded-lg border border-gray-300 bg-white text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all shadow-xs">
+                      <span className="pl-2.5 text-gray-400 font-semibold select-none text-xs">
+                        {currencySymbol}
+                      </span>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="0.00"
+                        value={exactAmounts[m.user_id] || ""}
+                        onChange={(e) =>
+                          setExactAmounts((p) => ({
+                            ...p,
+                            [m.user_id]: e.target.value,
+                          }))
+                        }
+                        className="min-w-0 flex-1 px-2 py-1 outline-none text-right text-sm rounded-r-lg"
+                      />
+                    </div>
+                  )}
+                  {splitType === "percentage" && isSelected && (
+                    <div className="flex w-24 items-center rounded-lg border border-gray-300 bg-white text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all shadow-xs">
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="0"
+                        value={percentages[m.user_id] || ""}
+                        onChange={(e) =>
+                          setPercentages((p) => ({
+                            ...p,
+                            [m.user_id]: e.target.value,
+                          }))
+                        }
+                        className="min-w-0 flex-1 px-2.5 py-1 outline-none text-right text-sm rounded-l-lg"
+                      />
+                      <span className="pr-2.5 text-gray-400 font-semibold select-none text-xs">%</span>
+                    </div>
+                  )}
+                  {splitType === "shares" && isSelected && (
+                    <div className="flex w-32 items-center rounded-lg border border-gray-300 bg-white text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all shadow-xs">
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="1"
+                        value={shares[m.user_id] || ""}
+                        onChange={(e) =>
+                          setShares((p) => ({
+                            ...p,
+                            [m.user_id]: e.target.value,
+                          }))
+                        }
+                        className="min-w-0 flex-1 px-2.5 py-1 outline-none text-right text-sm rounded-l-lg"
+                      />
+                      <span className="pr-2.5 text-gray-400 font-semibold select-none text-xs">shares</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row border-t border-gray-100 pt-4">
+        <div className="flex flex-col gap-3 sm:flex-row border-t border-gray-100 pt-5">
           <button
             type="submit"
             disabled={update.isPending}
-            className="hidden sm:block flex-1 bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all duration-200 cursor-pointer shadow-sm font-semibold text-sm"
+            className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all duration-200 cursor-pointer shadow-sm font-semibold text-sm"
           >
             {update.isPending ? "Saving..." : "Save Changes"}
           </button>

@@ -268,7 +268,7 @@ export default function GroupDetailPage() {
   const isAdmin = currentMember?.role === "admin";
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto px-1 sm:px-0">
       {/* Back to Groups Link */}
       <div className="mb-4">
         <Link
@@ -331,7 +331,7 @@ export default function GroupDetailPage() {
         <div className="flex items-center">
           <Link
             to={`/groups/${groupId}/add`}
-            className="w-full sm:w-auto bg-blue-600 text-white text-center px-4 py-2 rounded text-sm hover:bg-blue-700 font-semibold shadow-sm transition-colors cursor-pointer"
+            className="w-full sm:w-auto bg-blue-600 text-white text-center px-4 py-2 rounded-lg text-sm hover:bg-blue-700 font-semibold shadow-sm transition-all duration-200 cursor-pointer"
           >
             Add Expense
           </Link>
@@ -995,7 +995,11 @@ export default function GroupDetailPage() {
                 {add.isPending ? "Adding..." : "Add"}
               </button>
             </form>
-            {error && <p className="text-red-600 text-xs font-semibold mb-3">{error}</p>}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-xs font-medium mb-3">
+                {error}
+              </div>
+            )}
 
             <ul className="space-y-3">
               {members.map((m) => (
