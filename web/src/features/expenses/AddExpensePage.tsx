@@ -127,7 +127,7 @@ export default function AddExpensePage() {
   if (isLoading || !data) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500 text-sm">Loading expense form...</p>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">Loading expense form...</p>
       </div>
     );
   }
@@ -141,7 +141,7 @@ export default function AddExpensePage() {
       <div className="mb-4">
         <Link
           to={`/groups/${groupId}`}
-          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors font-medium cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors font-medium cursor-pointer"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -163,8 +163,8 @@ export default function AddExpensePage() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Add Expense</h1>
-          <p className="mt-1 text-sm text-gray-500">Split a new expense with members of {group.name}.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Add Expense</h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Split a new expense with members of {group.name}.</p>
         </div>
         <button
           type="submit"
@@ -193,18 +193,18 @@ export default function AddExpensePage() {
       <form
         id="add-expense-form"
         onSubmit={handleSubmit}
-        className="bg-white border border-gray-200 rounded-xl p-5 sm:p-6 shadow-sm space-y-5"
+        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 sm:p-6 shadow-sm space-y-5"
       >
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-lg text-xs font-medium">
+          <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-rose-400 px-3.5 py-2.5 rounded-lg text-xs font-medium">
             {error}
           </div>
         )}
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Amount</label>
+          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">Amount</label>
           <div className="relative">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 font-semibold text-sm select-none">
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 dark:text-gray-500 font-semibold text-sm select-none">
               {currencySymbol}
             </span>
             <input
@@ -214,40 +214,40 @@ export default function AddExpensePage() {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
-              className="w-full pl-8 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 shadow-xs"
+              className="w-full pl-8 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-200 shadow-xs"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Description</label>
+          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">Description</label>
           <input
             type="text"
             placeholder="e.g. Dinner, Groceries, Flight tickets"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 shadow-xs"
+            className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-200 shadow-xs"
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Date</label>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">Date</label>
             <input
               type="date"
               value={date}
               max={new Date().toISOString().split("T")[0]}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 cursor-pointer shadow-xs"
+              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-200 cursor-pointer shadow-xs"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Paid by</label>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">Paid by</label>
             <select
               value={paidBy}
               onChange={(e) => setPaidBy(Number(e.target.value))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 cursor-pointer shadow-xs"
+              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-200 cursor-pointer shadow-xs"
             >
               {members.map((m) => (
                 <option key={m.user_id} value={m.user_id}>
@@ -259,7 +259,7 @@ export default function AddExpensePage() {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1.5">Split type</label>
+          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5">Split type</label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {(["equal", "exact", "percentage", "shares"] as const).map((t) => (
               <button
@@ -269,7 +269,7 @@ export default function AddExpensePage() {
                 className={`py-2 px-3 rounded-lg text-xs font-semibold text-center transition-all duration-200 cursor-pointer ${
                   splitType === t
                     ? "bg-blue-600 text-white shadow-sm"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
                 }`}
               >
                 {splitTypeLabels[t]}
@@ -278,13 +278,13 @@ export default function AddExpensePage() {
           </div>
         </div>
 
-        <div className="border-t border-gray-100 pt-4">
+        <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
           <div className="flex items-center justify-between mb-3">
-            <label className="block text-xs font-semibold text-gray-500">Split among</label>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400">Split among</label>
             <button
               type="button"
               onClick={toggleAllMembers}
-              className="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors cursor-pointer"
             >
               {selectedMembers.length === members.length ? "Unselect all" : "Select all"}
             </button>
@@ -298,32 +298,32 @@ export default function AddExpensePage() {
                   key={m.user_id}
                   className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all ${
                     isSelected
-                      ? "bg-white border-gray-200 shadow-2xs"
-                      : "bg-gray-50/50 border-gray-100 text-gray-400"
+                      ? "bg-white dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 shadow-2xs"
+                      : "bg-gray-50/50 dark:bg-gray-900/40 border-gray-100 dark:border-gray-800/60 text-gray-400 dark:text-gray-600"
                   }`}
                 >
                   <input
                     type="checkbox"
                     checked={isSelected}
                     onChange={() => toggleMember(m.user_id)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 transition-all cursor-pointer"
+                    className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded focus:ring-blue-500 transition-all cursor-pointer"
                   />
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <div
                       className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold select-none shrink-0 ${
-                        isSelected ? "bg-blue-100 text-blue-700" : "bg-gray-200 text-gray-500"
+                        isSelected ? "bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300" : "bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
                       }`}
                     >
                       {m.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
                     </div>
-                    <span className={`break-words text-sm font-medium ${isSelected ? "text-gray-900" : "text-gray-500"}`}>
+                    <span className={`break-words text-sm font-medium ${isSelected ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-500"}`}>
                       {m.user_id === user?.id ? "You" : m.name}
                     </span>
                   </div>
                   
                   {splitType === "exact" && isSelected && (
-                    <div className="flex w-28 items-center rounded-lg border border-gray-300 bg-white text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all shadow-xs">
-                      <span className="pl-2.5 text-gray-400 font-semibold select-none text-xs">
+                    <div className="flex w-28 items-center rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all shadow-xs">
+                      <span className="pl-2.5 text-gray-400 dark:text-gray-500 font-semibold select-none text-xs">
                         {currencySymbol}
                       </span>
                       <input
@@ -337,12 +337,12 @@ export default function AddExpensePage() {
                             [m.user_id]: e.target.value,
                           }))
                         }
-                        className="min-w-0 flex-1 px-2 py-1 outline-none text-right text-sm rounded-r-lg"
+                        className="min-w-0 flex-1 px-2 py-1 outline-none text-right text-sm rounded-r-lg bg-transparent text-gray-900 dark:text-white"
                       />
                     </div>
                   )}
                   {splitType === "percentage" && isSelected && (
-                    <div className="flex w-24 items-center rounded-lg border border-gray-300 bg-white text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all shadow-xs">
+                    <div className="flex w-24 items-center rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all shadow-xs">
                       <input
                         type="number"
                         step="any"
@@ -354,13 +354,13 @@ export default function AddExpensePage() {
                             [m.user_id]: e.target.value,
                           }))
                         }
-                        className="min-w-0 flex-1 px-2.5 py-1 outline-none text-right text-sm rounded-l-lg"
+                        className="min-w-0 flex-1 px-2.5 py-1 outline-none text-right text-sm rounded-l-lg bg-transparent text-gray-900 dark:text-white"
                       />
-                      <span className="pr-2.5 text-gray-400 font-semibold select-none text-xs">%</span>
+                      <span className="pr-2.5 text-gray-400 dark:text-gray-500 font-semibold select-none text-xs">%</span>
                     </div>
                   )}
                   {splitType === "shares" && isSelected && (
-                    <div className="flex w-32 items-center rounded-lg border border-gray-300 bg-white text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all shadow-xs">
+                    <div className="flex w-32 items-center rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all shadow-xs">
                       <input
                         type="number"
                         step="any"
@@ -372,9 +372,9 @@ export default function AddExpensePage() {
                             [m.user_id]: e.target.value,
                           }))
                         }
-                        className="min-w-0 flex-1 px-2.5 py-1 outline-none text-right text-sm rounded-l-lg"
+                        className="min-w-0 flex-1 px-2.5 py-1 outline-none text-right text-sm rounded-l-lg bg-transparent text-gray-900 dark:text-white"
                       />
-                      <span className="pr-2.5 text-gray-400 font-semibold select-none text-xs">shares</span>
+                      <span className="pr-2.5 text-gray-400 dark:text-gray-500 font-semibold select-none text-xs">shares</span>
                     </div>
                   )}
                 </div>
@@ -383,7 +383,7 @@ export default function AddExpensePage() {
           </div>
         </div>
 
-        <div className="hidden sm:flex flex-col gap-3 sm:flex-row border-t border-gray-100 pt-5">
+        <div className="hidden sm:flex flex-col gap-3 sm:flex-row border-t border-gray-100 dark:border-gray-800 pt-5">
           <button
             type="submit"
             disabled={create.isPending}
@@ -394,7 +394,7 @@ export default function AddExpensePage() {
           <button
             type="button"
             onClick={() => navigate(`/groups/${groupId}`)}
-            className="flex-1 border border-gray-300 py-2.5 rounded-lg hover:bg-gray-50 transition-all duration-200 cursor-pointer text-gray-700 font-medium text-sm"
+            className="flex-1 border border-gray-300 dark:border-gray-700 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 cursor-pointer text-gray-700 dark:text-gray-200 font-medium text-sm"
           >
             Cancel
           </button>

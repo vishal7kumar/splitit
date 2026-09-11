@@ -77,16 +77,16 @@ export default function ActivityPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-1 sm:px-0">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Activity</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Activity</h1>
 
       {isLoading ? (
         <div className="text-center py-12">
-          <p className="text-gray-500 text-sm">Loading activity history...</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Loading activity history...</p>
         </div>
       ) : activity.length === 0 ? (
-        <div className="bg-white border border-dashed border-gray-300 rounded-xl p-8 text-center shadow-sm">
-          <p className="text-gray-500 text-sm mb-1">No activity yet.</p>
-          <p className="text-gray-400 text-xs">Create groups, add expenses, or settle balances to build history!</p>
+        <div className="bg-white dark:bg-gray-900 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-8 text-center shadow-sm">
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">No activity yet.</p>
+          <p className="text-gray-400 dark:text-gray-500 text-xs">Create groups, add expenses, or settle balances to build history!</p>
         </div>
       ) : (
         <ul className="space-y-3">
@@ -106,34 +106,34 @@ export default function ActivityPage() {
                 : "";
             const content = (
               <div className="flex items-start justify-between gap-3 text-sm">
-                <div className="break-words text-gray-600 flex-1 min-w-0">
+                <div className="break-words text-gray-600 dark:text-gray-300 flex-1 min-w-0">
                   {!item.is_involved && (
-                    <span className="mb-1 inline-block rounded bg-amber-50 border border-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 uppercase tracking-wider">
+                    <span className="mb-1 inline-block rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
                       You were not involved
                     </span>
                   )}
-                  <div className="text-gray-900">
-                    <span className="font-semibold text-gray-950">
+                  <div className="text-gray-900 dark:text-gray-100">
+                    <span className="font-semibold text-gray-950 dark:text-white">
                       {isActorYou ? "You" : item.user_name}
                     </span>{" "}
-                    <span className="text-gray-700">{activityText(item.summary, item.user_name)}</span>
+                    <span className="text-gray-700 dark:text-gray-300">{activityText(item.summary, item.user_name)}</span>
                   </div>
-                  <div className="mt-1.5 text-xs text-gray-400 font-medium">
+                  <div className="mt-1.5 text-xs text-gray-400 dark:text-gray-500 font-medium">
                     {item.group_name || "Group"} &middot; {formatDate(item.created_at)}
                   </div>
                 </div>
                 {item.is_new && (
-                  <span className="shrink-0 inline-flex items-center rounded-full bg-blue-100 border border-blue-200 px-2 py-0.5 text-[9px] font-extrabold text-blue-700 uppercase tracking-wider animate-pulse">
+                  <span className="shrink-0 inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 px-2 py-0.5 text-[9px] font-extrabold text-blue-700 dark:text-blue-300 uppercase tracking-wider animate-pulse">
                     New
                   </span>
                 )}
                 {item.reverted_at && (
-                  <span className="shrink-0 inline-flex items-center rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-[9px] font-extrabold text-green-700 uppercase tracking-wider">
+                  <span className="shrink-0 inline-flex items-center rounded-full bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 px-2 py-0.5 text-[9px] font-extrabold text-green-700 dark:text-green-300 uppercase tracking-wider">
                     Restored
                   </span>
                 )}
                 {isExpired && (
-                  <span className="shrink-0 inline-flex items-center rounded-full bg-gray-100 border border-gray-200 px-2 py-0.5 text-[9px] font-extrabold text-gray-500 uppercase tracking-wider">
+                  <span className="shrink-0 inline-flex items-center rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-0.5 text-[9px] font-extrabold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Expired
                   </span>
                 )}
@@ -142,8 +142,8 @@ export default function ActivityPage() {
 
             const itemClass = `border rounded-xl p-4 transition-all duration-200 ${
               item.is_new
-                ? "bg-blue-50/30 border-blue-200 shadow-sm"
-                : "bg-white border-gray-200 hover:shadow-md hover:border-gray-300"
+                ? "bg-blue-50/30 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/60 shadow-sm"
+                : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700"
             }`;
 
             const activityContent = canNavigate ? (
@@ -168,14 +168,14 @@ export default function ActivityPage() {
                       type="button"
                       disabled={revertMutation.isPending}
                       onClick={() => revertMutation.mutate(item.id)}
-                      className="shrink-0 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                      className="shrink-0 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/50 px-3 py-1.5 text-xs font-bold text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                     >
                       {isReverting ? "Reverting..." : "Revert"}
                     </button>
                   )}
                 </div>
                 {revertError && (
-                  <p className="mt-2 text-xs font-semibold text-red-600" role="alert">
+                  <p className="mt-2 text-xs font-semibold text-red-600 dark:text-rose-400" role="alert">
                     {revertError}
                   </p>
                 )}
@@ -186,7 +186,7 @@ export default function ActivityPage() {
       )}
       <div ref={activityLoadMoreRef} className="h-6" />
       {isFetchingNextPage && (
-        <p className="text-center text-xs text-gray-400 mt-2">Loading more activities...</p>
+        <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-2">Loading more activities...</p>
       )}
     </div>
   );

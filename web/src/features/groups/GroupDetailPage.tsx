@@ -260,7 +260,7 @@ export default function GroupDetailPage() {
   }
 
   if (isLoading || !data) {
-    return <p className="text-gray-500">Loading...</p>;
+    return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
   }
 
   const { group, members } = data;
@@ -273,7 +273,7 @@ export default function GroupDetailPage() {
       <div className="mb-4">
         <Link
           to="/groups"
-          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors font-medium cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors font-medium cursor-pointer"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -296,27 +296,27 @@ export default function GroupDetailPage() {
       {/* Group Title and Actions */}
       <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="break-words text-2xl font-bold text-gray-900">{group.name}</h1>
-          <p className="text-sm text-gray-500 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span>Currency: <span className="font-semibold text-gray-700">{group.currency}</span></span>
+          <h1 className="break-words text-2xl font-bold text-gray-900 dark:text-white">{group.name}</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>Currency: <span className="font-semibold text-gray-700 dark:text-gray-300">{group.currency}</span></span>
             {balanceData && (
               <>
-                <span className="text-gray-300 sm:inline hidden">|</span>
+                <span className="text-gray-300 dark:text-gray-600 sm:inline hidden">|</span>
                 <span>
                   Your balance:{" "}
                   <span
                     className={`font-bold ${
                       myBalance > 0.005
-                        ? "text-green-600"
+                        ? "text-green-600 dark:text-emerald-400"
                         : myBalance < -0.005
-                          ? "text-red-600"
-                          : "text-gray-500"
+                          ? "text-red-600 dark:text-rose-400"
+                          : "text-gray-500 dark:text-gray-400"
                     }`}
                   >
                     {myBalance > 0.005 ? "+" : ""}
                     {formatCurrency(group.currency, myBalance)}
                   </span>
-                  <span className="text-xs text-gray-400 font-normal ml-1">
+                  <span className="text-xs text-gray-400 dark:text-gray-500 font-normal ml-1">
                     {myBalance > 0.005
                       ? "(others owe you)"
                       : myBalance < -0.005
@@ -339,15 +339,15 @@ export default function GroupDetailPage() {
       </div>
 
       {/* Navigation tabs */}
-      <div className="border-b border-gray-200 mb-6 overflow-x-auto overflow-y-hidden scrollbar-none">
+      <div className="border-b border-gray-200 dark:border-gray-800 mb-6 overflow-x-auto overflow-y-hidden scrollbar-none">
         <nav className="-mb-px flex space-x-4 sm:space-x-8 pb-0.5" aria-label="Tabs">
           <button
             onClick={() => setActiveTab("expenses")}
             className={`
               flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer shrink-0
               ${activeTab === "expenses"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ? "border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400"
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-700"
               }
             `}
           >
@@ -372,8 +372,8 @@ export default function GroupDetailPage() {
             className={`
               flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer shrink-0
               ${activeTab === "balances"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ? "border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400"
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-700"
               }
             `}
           >
@@ -398,8 +398,8 @@ export default function GroupDetailPage() {
             className={`
               flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer shrink-0
               ${activeTab === "totals"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ? "border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400"
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-700"
               }
             `}
           >
@@ -429,8 +429,8 @@ export default function GroupDetailPage() {
             className={`
               flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-all duration-200 cursor-pointer shrink-0
               ${activeTab === "settings"
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                ? "border-blue-600 dark:border-blue-400 text-blue-600 dark:text-blue-400"
+                : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-700"
               }
             `}
           >
@@ -468,10 +468,10 @@ export default function GroupDetailPage() {
                 placeholder="Search expenses..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 shadow-sm"
+                className="w-full border border-gray-300 dark:border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all duration-200 shadow-sm"
               />
               <svg
-                className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                className="w-4 h-4 text-gray-400 dark:text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -489,7 +489,7 @@ export default function GroupDetailPage() {
                 aria-label="Filter by payer"
                 value={filterPaidBy}
                 onChange={(e) => setFilterPaidBy(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 shadow-sm text-gray-700 cursor-pointer"
+                className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 transition-all duration-200 shadow-sm cursor-pointer"
               >
                 <option value="">All payers</option>
                 {data?.members.map((m) => (
@@ -503,7 +503,7 @@ export default function GroupDetailPage() {
 
           {transactions.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-400 text-sm italic">
+              <p className="text-gray-400 dark:text-gray-500 text-sm italic">
                 {search || filterPaidBy
                   ? "No expenses match your search or filter."
                   : "No expenses yet."}
@@ -515,7 +515,7 @@ export default function GroupDetailPage() {
                     setSearch("");
                     setFilterPaidBy("");
                   }}
-                  className="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-700 underline cursor-pointer"
+                  className="mt-2 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline cursor-pointer"
                 >
                   Clear filters
                 </button>
@@ -525,11 +525,11 @@ export default function GroupDetailPage() {
             <div className="space-y-6">
               {groupedTransactions.map((groupObj) => (
                 <div key={groupObj.monthKey} className="relative">
-                  <div className="sticky top-0 bg-gray-50/95 backdrop-blur-xs py-2 z-10 flex items-center justify-between border-b border-gray-200 mb-3">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  <div className="sticky top-0 bg-gray-50/95 dark:bg-gray-950/95 backdrop-blur-xs py-2 z-10 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 mb-3">
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       {groupObj.monthLabel}
                     </span>
-                    <span className="text-xs text-gray-400 font-semibold">
+                    <span className="text-xs text-gray-400 dark:text-gray-500 font-semibold">
                       {groupObj.items.length} {groupObj.items.length === 1 ? "entry" : "entries"}
                     </span>
                   </div>
@@ -545,10 +545,10 @@ export default function GroupDetailPage() {
                         return (
                           <li
                             key={`settlement-${txn.id}`}
-                            className="flex flex-col gap-3 border border-emerald-200/80 bg-gradient-to-r from-emerald-50/40 via-white to-white rounded-xl p-4 sm:flex-row sm:items-center sm:justify-between transition-all duration-200 shadow-sm border-l-4 border-l-emerald-500"
+                            className="flex flex-col gap-3 border border-emerald-200/80 dark:border-emerald-800/60 bg-gradient-to-r from-emerald-50/40 dark:from-emerald-950/30 via-white dark:via-gray-900 to-white dark:to-gray-900 rounded-xl p-4 sm:flex-row sm:items-center sm:justify-between transition-all duration-200 shadow-sm border-l-4 border-l-emerald-500 dark:border-l-emerald-400"
                           >
                             <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 shadow-xs">
+                              <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0 shadow-xs">
                                 <svg
                                   xmlns="http://www.w3.org/2000/svg"
                                   fill="none"
@@ -561,18 +561,18 @@ export default function GroupDetailPage() {
                                 </svg>
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="font-semibold break-words text-gray-900 text-sm flex items-center gap-2 flex-wrap">
+                                <div className="font-semibold break-words text-gray-900 dark:text-white text-sm flex items-center gap-2 flex-wrap">
                                   <span>
                                     {payerName} paid {recipientName}
                                   </span>
-                                  <span className="inline-flex items-center rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200 uppercase tracking-wider">
+                                  <span className="inline-flex items-center rounded-md bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 uppercase tracking-wider">
                                     Settlement
                                   </span>
                                 </div>
-                                <div className="break-words text-xs text-gray-500 mt-1 font-medium">
+                                <div className="break-words text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">
                                   {!isInvolved ? (
                                     <>
-                                      <span className="text-gray-400 font-medium">You were not involved</span>
+                                      <span className="text-gray-400 dark:text-gray-500 font-medium">You were not involved</span>
                                       {" "}&middot; {formatExpenseDate(txn.date)}
                                     </>
                                   ) : (
@@ -584,13 +584,13 @@ export default function GroupDetailPage() {
                               </div>
                             </div>
 
-                            <div className="flex shrink-0 items-center justify-end gap-3 sm:gap-4 border-t border-gray-100 pt-2 sm:border-t-0 sm:pt-0">
+                            <div className="flex shrink-0 items-center justify-end gap-3 sm:gap-4 border-t border-gray-100 dark:border-gray-800 pt-2 sm:border-t-0 sm:pt-0">
                               {isInvolved && (
                                 <div className="text-right shrink-0">
-                                  <span className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-green-600">
+                                  <span className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-green-600 dark:text-emerald-400">
                                     {isPayer ? "you paid" : "you received"}
                                   </span>
-                                  <span className="block font-bold text-sm sm:text-base text-green-600">
+                                  <span className="block font-bold text-sm sm:text-base text-green-600 dark:text-emerald-400">
                                     {isReceiver ? "+" : ""}{formatCurrency(group.currency, txn.amount)}
                                   </span>
                                 </div>
@@ -625,25 +625,25 @@ export default function GroupDetailPage() {
                               navigate(`/groups/${groupId}/expenses/${exp.id}`);
                             }
                           }}
-                          className="flex flex-col gap-3 border border-gray-200 bg-white rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-gray-300 sm:flex-row sm:items-center sm:justify-between transition-all duration-200 shadow-sm"
+                          className="flex flex-col gap-3 border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700 sm:flex-row sm:items-center sm:justify-between transition-all duration-200 shadow-sm"
                         >
                           <div className="min-w-0 flex-1">
-                            <span className="font-semibold break-words text-gray-900 text-sm">
+                            <span className="font-semibold break-words text-gray-900 dark:text-white text-sm">
                               {exp.description || "Untitled"}
                             </span>
-                            <div className="break-words text-xs text-gray-500 mt-1 font-medium">
+                            <div className="break-words text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">
                               {!isInvolved ? (
                                 <>
-                                  <span className="text-gray-500 font-medium">You are not involved</span>
+                                  <span className="text-gray-500 dark:text-gray-400 font-medium">You are not involved</span>
                                   {" "}&middot; {formatExpenseDate(exp.date)}
                                 </>
                               ) : (
                                 <>
-                                  <span className="font-semibold text-gray-700">
+                                  <span className="font-semibold text-gray-700 dark:text-gray-300">
                                     {isPayer ? "You" : (memberMap[exp.paid_by]?.name || "Unknown")}
                                   </span>{" "}
                                   paid{" "}
-                                  <span className="font-semibold text-gray-700">
+                                  <span className="font-semibold text-gray-700 dark:text-gray-300">
                                     {formatCurrency(group.currency, exp.amount)}
                                   </span>{" "}
                                   &middot; {formatExpenseDate(exp.date)}
@@ -651,19 +651,19 @@ export default function GroupDetailPage() {
                               )}
                             </div>
                           </div>
-                          <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 sm:gap-4 border-t border-gray-100 pt-2 sm:border-t-0 sm:pt-0">
+                          <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 sm:gap-4 border-t border-gray-100 dark:border-gray-800 pt-2 sm:border-t-0 sm:pt-0">
                             {isInvolved && (
                               <div className="text-right shrink-0">
                                 <span
                                   className={`block text-[11px] sm:text-xs font-semibold uppercase tracking-wider ${
-                                    isPayer ? "text-green-600" : "text-red-600"
+                                    isPayer ? "text-green-600 dark:text-emerald-400" : "text-red-600 dark:text-rose-400"
                                   }`}
                                 >
                                   {isPayer ? "you paid" : "you borrowed"}
                                 </span>
                                 <span
                                   className={`block font-bold text-sm sm:text-base ${
-                                    isPayer ? "text-green-600" : "text-red-600"
+                                    isPayer ? "text-green-600 dark:text-emerald-400" : "text-red-600 dark:text-rose-400"
                                   }`}
                                 >
                                   {formatCurrency(group.currency, displayAmount)}
@@ -674,7 +674,7 @@ export default function GroupDetailPage() {
                               <Link
                                 to={`/groups/${groupId}/expenses/${exp.id}/edit`}
                                 onClick={(e) => e.stopPropagation()}
-                                className="p-1.5 text-gray-500 hover:text-blue-650 hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
+                                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-all cursor-pointer"
                                 title="Edit"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
@@ -688,7 +688,7 @@ export default function GroupDetailPage() {
                                   if (confirm("Delete this expense? You can restore it from Activity for 30 days."))
                                     delExpense.mutate(exp.id);
                                 }}
-                                className="p-1.5 text-gray-500 hover:text-red-650 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
+                                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-950/40 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
                                 title="Delete"
                               >
                                 <svg
@@ -721,12 +721,12 @@ export default function GroupDetailPage() {
 
       {activeTab === "balances" && balanceData && (
         <section className="mb-8">
-          <h2 className="text-lg font-bold mb-4 text-gray-900">Balances</h2>
+          <h2 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">Balances</h2>
           <ul className="space-y-3 mb-6">
             {balanceData.balances.map((b) => (
-              <li key={b.user_id} className="flex justify-between items-center gap-3 text-sm border border-gray-200 bg-white rounded-xl p-3.5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-gray-300">
-                <span className="min-w-0 break-words text-gray-700 font-medium">{b.user_id === user?.id ? "You" : b.name}</span>
-                <span className={`font-bold ${b.balance >= 0.005 ? "text-green-600" : b.balance < -0.005 ? "text-red-600" : "text-gray-500"}`}>
+              <li key={b.user_id} className="flex justify-between items-center gap-3 text-sm border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-xl p-3.5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700">
+                <span className="min-w-0 break-words text-gray-700 dark:text-gray-300 font-medium">{b.user_id === user?.id ? "You" : b.name}</span>
+                <span className={`font-bold ${b.balance >= 0.005 ? "text-green-600 dark:text-emerald-400" : b.balance < -0.005 ? "text-red-600 dark:text-rose-400" : "text-gray-500 dark:text-gray-400"}`}>
                   {b.balance > 0.005 ? "+" : ""}{formatCurrency(group.currency, b.balance)}
                 </span>
               </li>
@@ -735,19 +735,19 @@ export default function GroupDetailPage() {
 
           {balanceData.debts.length > 0 && (
             <>
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5 mt-6">Simplified debts</h3>
+              <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2.5 mt-6">Simplified debts</h3>
               <ul className="space-y-3 mb-6">
                 {balanceData.debts.map((d, i) => (
-                  <li key={i} className="flex flex-col gap-3 text-sm border border-gray-200 bg-white rounded-xl p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between hover:shadow-md hover:border-gray-300 transition-all duration-200">
-                    <span className="min-w-0 break-words text-gray-700">
-                      <span className="font-semibold text-gray-950">{d.from === user?.id ? "You" : d.from_name}</span>
+                  <li key={i} className="flex flex-col gap-3 text-sm border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-200">
+                    <span className="min-w-0 break-words text-gray-700 dark:text-gray-300">
+                      <span className="font-semibold text-gray-950 dark:text-white">{d.from === user?.id ? "You" : d.from_name}</span>
                       {d.from === user?.id ? " owe " : " owes "}
-                      <span className="font-semibold text-gray-950">{d.to === user?.id ? "You" : d.to_name}</span>
-                      {" "}<span className="font-bold text-gray-900">{formatCurrency(group.currency, d.amount)}</span>
+                      <span className="font-semibold text-gray-950 dark:text-white">{d.to === user?.id ? "You" : d.to_name}</span>
+                      {" "}<span className="font-bold text-gray-900 dark:text-white">{formatCurrency(group.currency, d.amount)}</span>
                     </span>
                     {d.from === user?.id && (
                       settlePrompt?.to === d.to ? (
-                        <div className="flex flex-wrap items-center gap-2 border-t border-gray-50 pt-2 sm:border-t-0 sm:pt-0">
+                        <div className="flex flex-wrap items-center gap-2 border-t border-gray-50 dark:border-gray-800 pt-2 sm:border-t-0 sm:pt-0">
                           <button
                             disabled={settle.isPending}
                             onClick={() => {
@@ -766,7 +766,7 @@ export default function GroupDetailPage() {
                               placeholder="Amount"
                               value={customSettleAmount}
                               onChange={(e) => setCustomSettleAmount(e.target.value)}
-                              className="w-20 min-w-0 border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white transition-all"
+                              className="w-20 min-w-0 border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all"
                             />
                             <button
                               disabled={settle.isPending}
@@ -785,7 +785,7 @@ export default function GroupDetailPage() {
                           </div>
                           <button
                             onClick={() => { setSettlePrompt(null); setCustomSettleAmount(""); }}
-                            className="text-xs text-gray-400 hover:text-gray-600 px-1 font-semibold cursor-pointer"
+                            className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 px-1 font-semibold cursor-pointer"
                           >
                             Cancel
                           </button>
@@ -806,13 +806,13 @@ export default function GroupDetailPage() {
           )}
 
           {/* Manual settle */}
-          <div className="border border-gray-200 bg-white rounded-xl p-5 shadow-sm mt-6">
-            <h3 className="text-sm font-bold text-gray-900 mb-3.5">Record a payment</h3>
+          <div className="border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-xl p-5 shadow-sm mt-6">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3.5">Record a payment</h3>
             <div className="flex gap-3 flex-col sm:flex-row">
               <select
                 value={settleDirection}
                 onChange={(e) => setSettleDirection(e.target.value as "paid" | "received")}
-                className="w-full sm:w-44 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                className="w-full sm:w-44 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               >
                 <option value="paid">You paid</option>
                 <option value="received">You received from</option>
@@ -820,7 +820,7 @@ export default function GroupDetailPage() {
               <select
                 value={settleOtherId}
                 onChange={(e) => setSettleOtherId(Number(e.target.value))}
-                className="min-w-0 flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                className="min-w-0 flex-1 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               >
                 <option value={0}>Select member...</option>
                 {members
@@ -837,7 +837,7 @@ export default function GroupDetailPage() {
                 placeholder="Amount"
                 value={settleAmount}
                 onChange={(e) => setSettleAmount(e.target.value)}
-                className="w-full min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm sm:w-28 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
+                className="w-full min-w-0 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm sm:w-28 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               />
               <button
                 disabled={settle.isPending}
@@ -863,21 +863,21 @@ export default function GroupDetailPage() {
       {activeTab === "totals" && (
         <section className="mb-8 space-y-6">
           {/* Month Selector & Overall Stats */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Monthly Spending Totals</h2>
-                <p className="text-xs text-gray-500 mt-0.5">Summary of total spends by the group and individual members.</p>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Monthly Spending Totals</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Summary of total spends by the group and individual members.</p>
               </div>
               <div className="flex items-center gap-2">
-                <label htmlFor="totals-month-select" className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                <label htmlFor="totals-month-select" className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Month:
                 </label>
                 <select
                   id="totals-month-select"
                   value={currentMonthKey}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer text-gray-800 font-semibold transition-all"
+                  className="text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer text-gray-800 dark:text-gray-200 font-semibold transition-all"
                 >
                   {availableMonths.map((m) => (
                     <option key={m} value={m}>
@@ -888,25 +888,25 @@ export default function GroupDetailPage() {
               </div>
             </div>
 
-            <hr className="border-gray-100" />
+            <hr className="border-gray-100 dark:border-gray-800" />
 
             <div className="py-2 text-center sm:text-left">
-              <span className="block text-xs font-bold text-gray-400 uppercase tracking-wider">Total Group Spending</span>
-              <span className="block text-3xl font-extrabold text-gray-900 mt-1">
+              <span className="block text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Total Group Spending</span>
+              <span className="block text-3xl font-extrabold text-gray-900 dark:text-white mt-1">
                 {formatCurrency(group.currency, totalGroupSpend)}
               </span>
-              <p className="text-xs text-gray-400 mt-1 font-medium">
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-medium">
                 For {getMonthLabel(currentMonthKey)} &middot; {monthlyExpenses.length} {monthlyExpenses.length === 1 ? "expense" : "expenses"}
               </p>
             </div>
           </div>
 
           {/* Individual Spends */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <h3 className="text-sm font-bold text-gray-900 mb-4">Spends by Member</h3>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">Spends by Member</h3>
             
             {totalGroupSpend === 0 ? (
-              <p className="text-gray-400 text-xs italic py-2">No spends recorded for this month.</p>
+              <p className="text-gray-400 dark:text-gray-500 text-xs italic py-2">No spends recorded for this month.</p>
             ) : (
               <ul className="space-y-4.5">
                 {memberSpends.map((m) => {
@@ -914,23 +914,23 @@ export default function GroupDetailPage() {
                   return (
                     <li key={m.user_id} className="space-y-1.5">
                       <div className="flex justify-between items-center text-sm gap-2">
-                        <span className="font-semibold text-gray-700 truncate">
+                        <span className="font-semibold text-gray-700 dark:text-gray-300 truncate">
                           {m.user_id === user?.id ? "You" : m.name}
                         </span>
-                        <span className="font-bold text-gray-950 shrink-0">
+                        <span className="font-bold text-gray-950 dark:text-white shrink-0">
                           {formatCurrency(group.currency, m.amountPaid)}
                         </span>
                       </div>
                       
                       {/* CSS progress bar */}
-                      <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                      <div className="w-full bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden">
                         <div
                            className="bg-blue-600 h-full rounded-full transition-all duration-500"
                            style={{ width: `${percentage}%` }}
                         />
                       </div>
                       
-                      <div className="flex justify-between text-[10px] text-gray-400 font-semibold">
+                      <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 font-semibold">
                         <span>
                           {percentage.toFixed(1)}% of total
                         </span>
@@ -950,18 +950,18 @@ export default function GroupDetailPage() {
       {activeTab === "settings" && (
         <section className="mb-8 space-y-6">
           {/* Group Preferences Card */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <h3 className="text-sm font-bold text-gray-900 mb-3.5">Group Preferences</h3>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3.5">Group Preferences</h3>
             <div className="flex items-center justify-between gap-4 py-1">
               <div>
-                <span className="block text-sm font-semibold text-gray-700">Group Currency</span>
-                <span className="text-xs text-gray-400 mt-0.5 font-medium">The currency used for calculating balances and new expenses.</span>
+                <span className="block text-sm font-semibold text-gray-700 dark:text-gray-300">Group Currency</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 font-medium">The currency used for calculating balances and new expenses.</span>
               </div>
               {isAdmin ? (
                 <select
                   value={group.currency}
                   onChange={(e) => updateCurrency.mutate(e.target.value)}
-                  className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition-all"
+                  className="text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition-all"
                 >
                   <option value="INR">INR</option>
                   <option value="USD">USD</option>
@@ -969,14 +969,14 @@ export default function GroupDetailPage() {
                   <option value="GBP">GBP</option>
                 </select>
               ) : (
-                <span className="text-sm font-bold text-gray-800 bg-gray-100 px-2.5 py-1 rounded-lg">{group.currency}</span>
+                <span className="text-sm font-bold text-gray-800 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 px-2.5 py-1 rounded-lg">{group.currency}</span>
               )}
             </div>
           </div>
 
           {/* Members Management Card */}
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <h3 className="text-sm font-bold text-gray-900 mb-3.5">Members ({members.length})</h3>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3.5">Members ({members.length})</h3>
 
             <form onSubmit={handleAddMember} className="flex flex-col gap-2.5 mb-4 sm:flex-row">
               <input
@@ -984,7 +984,7 @@ export default function GroupDetailPage() {
                 placeholder="Add member by email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="min-w-0 flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all"
+                className="min-w-0 flex-1 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all"
                 required
               />
               <button
@@ -996,7 +996,7 @@ export default function GroupDetailPage() {
               </button>
             </form>
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-xs font-medium mb-3">
+              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-rose-400 px-3 py-2 rounded-lg text-xs font-medium mb-3">
                 {error}
               </div>
             )}
@@ -1005,24 +1005,24 @@ export default function GroupDetailPage() {
               {members.map((m) => (
                 <li
                   key={m.user_id}
-                  className="flex items-center justify-between gap-3 border border-gray-200 bg-white rounded-xl p-3.5 shadow-2xs hover:shadow-xs transition-all"
+                  className="flex items-center justify-between gap-3 border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 rounded-xl p-3.5 shadow-2xs hover:shadow-xs transition-all"
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm text-gray-900 break-words">{m.user_id === user?.id ? "You" : m.name}</span>
+                      <span className="font-semibold text-sm text-gray-900 dark:text-white break-words">{m.user_id === user?.id ? "You" : m.name}</span>
                       {m.role === "admin" && (
-                        <span className="text-[10px] bg-blue-50 border border-blue-100 text-blue-700 rounded px-1.5 py-0.5 font-bold uppercase tracking-wider">
+                        <span className="text-[10px] bg-blue-50 dark:bg-blue-950 border border-blue-100 dark:border-blue-800 text-blue-700 dark:text-blue-300 rounded px-1.5 py-0.5 font-bold uppercase tracking-wider">
                           admin
                         </span>
                       )}
                     </div>
-                    <span className="block break-all text-gray-400 text-xs mt-1 font-medium">{m.email}</span>
+                    <span className="block break-all text-gray-400 dark:text-gray-500 text-xs mt-1 font-medium">{m.email}</span>
                   </div>
                   {isAdmin && m.user_id !== user?.id && (
                     <button
                       disabled={remove.isPending}
                       onClick={() => remove.mutate(m.user_id)}
-                      className="shrink-0 text-xs text-red-600 hover:text-red-800 font-bold disabled:opacity-50 cursor-pointer"
+                      className="shrink-0 text-xs text-red-600 dark:text-rose-400 hover:text-red-800 dark:hover:text-rose-300 font-bold disabled:opacity-50 cursor-pointer"
                     >
                       Remove
                     </button>
@@ -1034,9 +1034,9 @@ export default function GroupDetailPage() {
 
           {/* Danger Zone Card */}
           {isAdmin && (
-            <div className="bg-red-50/50 border border-red-200 rounded-xl p-5 shadow-sm">
-              <h3 className="text-sm font-bold text-red-800 mb-1.5">Danger Zone</h3>
-              <p className="text-xs text-red-600 mb-4 leading-relaxed font-medium">
+            <div className="bg-red-50/50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/60 rounded-xl p-5 shadow-sm">
+              <h3 className="text-sm font-bold text-red-800 dark:text-rose-400 mb-1.5">Danger Zone</h3>
+              <p className="text-xs text-red-600 dark:text-rose-400/90 mb-4 leading-relaxed font-medium">
                 This group will be hidden immediately. A group admin can restore it with all of its data from Activity for 30 days.
               </p>
               <button

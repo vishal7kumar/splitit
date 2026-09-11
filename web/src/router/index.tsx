@@ -18,9 +18,9 @@ function ProtectedLayout() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
-        <p className="text-gray-500 text-sm font-medium">Loading SplitIt...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-950 transition-colors duration-200">
+        <div className="w-6 h-6 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin mb-3"></div>
+        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Loading SplitIt...</p>
       </div>
     );
   }

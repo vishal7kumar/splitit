@@ -39,7 +39,7 @@ export default function BrandLogo({ size = "sm", className = "" }: BrandLogoProp
           />
         </g>
       </svg>
-      <span className={`${classes.text} font-semibold tracking-normal text-gray-950`}>
+      <span className={`${classes.text} font-semibold tracking-normal text-gray-950 dark:text-white transition-colors`}>
         splitit
       </span>
     </span>

@@ -33,16 +33,16 @@ export default function FriendsPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-1 sm:px-0">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Friends</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Friends</h1>
 
       {isLoading ? (
         <div className="text-center py-12">
-          <p className="text-gray-500 text-sm">Loading friends...</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Loading friends...</p>
         </div>
       ) : friends.length === 0 ? (
-        <div className="bg-white border border-dashed border-gray-300 rounded-xl p-8 text-center shadow-sm">
-          <p className="text-gray-500 text-sm mb-1">No friends yet.</p>
-          <p className="text-gray-400 text-xs">Add members to your groups and they will appear here as friends.</p>
+        <div className="bg-white dark:bg-gray-900 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-8 text-center shadow-sm">
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">No friends yet.</p>
+          <p className="text-gray-400 dark:text-gray-500 text-xs">Add members to your groups and they will appear here as friends.</p>
         </div>
       ) : (
         <ul className="space-y-3">
@@ -55,18 +55,18 @@ export default function FriendsPage() {
             return (
               <li
                 key={friend.user_id}
-                className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm transition-all duration-200"
+                className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-sm transition-all duration-200"
               >
                 <button
                   type="button"
                   onClick={() => setOpenFriendId(isOpen ? null : friend.user_id)}
-                  className="flex w-full items-center justify-between p-4 text-left hover:bg-gray-50 focus:outline-none transition-all cursor-pointer"
+                  className="flex w-full items-center justify-between p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800/50 focus:outline-none transition-all cursor-pointer"
                 >
                   <div className="min-w-0 mr-3">
-                    <span className="block font-semibold text-gray-900 truncate">
+                    <span className="block font-semibold text-gray-900 dark:text-white truncate">
                       {friend.name || friend.email}
                     </span>
-                    <span className="block text-xs text-gray-400 truncate">
+                    <span className="block text-xs text-gray-400 dark:text-gray-500 truncate">
                       {friend.email}
                     </span>
                   </div>
@@ -74,17 +74,17 @@ export default function FriendsPage() {
                     <span
                       className={`font-bold text-sm ${
                         friend.total_balance > 0.005
-                          ? "text-green-600"
+                          ? "text-green-600 dark:text-emerald-400"
                           : friend.total_balance < -0.005
-                            ? "text-red-600"
-                            : "text-gray-500"
+                            ? "text-red-600 dark:text-rose-400"
+                            : "text-gray-500 dark:text-gray-400"
                       }`}
                     >
                       {friend.total_balance > 0.005 ? "+" : ""}
                       {formatCurrency(currency, friend.total_balance)}
                     </span>
                     <svg
-                      className={`w-4 h-4 text-gray-400 transform transition-transform duration-200 ${
+                      className={`w-4 h-4 text-gray-400 dark:text-gray-500 transform transition-transform duration-200 ${
                         isOpen ? "rotate-180" : ""
                       }`}
                       fill="none"
@@ -97,12 +97,12 @@ export default function FriendsPage() {
                 </button>
 
                 {isOpen && (
-                  <div className="border-t border-gray-100 bg-gray-50 p-4 animate-slide-down">
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">
+                  <div className="border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/60 p-4 animate-slide-down">
+                    <p className="text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2.5">
                       Group breakdown
                     </p>
                     {friend.groups.length === 0 ? (
-                      <p className="text-xs text-gray-500 italic">All settled up in all shared groups.</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 italic">All settled up in all shared groups.</p>
                     ) : (
                       <ul className="space-y-2 mb-4">
                         {friend.groups.map((group) => (
@@ -112,13 +112,13 @@ export default function FriendsPage() {
                           >
                             <Link
                               to={`/groups/${group.group_id}`}
-                              className="min-w-0 truncate text-blue-600 hover:text-blue-800 font-semibold cursor-pointer"
+                              className="min-w-0 truncate text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-semibold cursor-pointer"
                             >
                               {group.name}
                             </Link>
                             <span
                               className={`shrink-0 font-bold ${
-                                group.balance > 0.005 ? "text-green-600" : group.balance < -0.005 ? "text-red-600" : "text-gray-500"
+                                group.balance > 0.005 ? "text-green-600 dark:text-emerald-400" : group.balance < -0.005 ? "text-red-600 dark:text-rose-400" : "text-gray-500 dark:text-gray-400"
                               }`}
                             >
                               {group.balance > 0.005 ? "+" : ""}
