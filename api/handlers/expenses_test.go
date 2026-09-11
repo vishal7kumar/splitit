@@ -625,3 +625,68 @@ func TestListExpensesWithInvolvement(t *testing.T) {
 	}
 }
 
+func TestListExpensesWithPaidByFilter(t *testing.T) {
+	database := setupTestDB(t)
+	r := setupRouter(database)
+
+	aliceCookies := registerAndLogin(r, "alice-paidby@test.com", "pass123", "Alice")
+	bobCookies := registerAndLogin(r, "bob-paidby@test.com", "pass123", "Bob")
+
+	w := doJSON(r, "POST", "/api/groups", map[string]string{"name": "PaidBy Group"}, aliceCookies...)
+	var group map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &group)
+	groupID := int(group["id"].(float64))
+
+	doJSON(r, "POST", fmt.Sprintf("/api/groups/%d/members", groupID), map[string]string{"email": "bob-paidby@test.com"}, aliceCookies...)
+
+	w = doJSON(r, "GET", fmt.Sprintf("/api/groups/%d", groupID), nil, aliceCookies...)
+	var detail map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &detail)
+	members := detail["members"].([]interface{})
+
+	var aliceID, bobID int
+	for _, m := range members {
+		mMap := m.(map[string]interface{})
+		if mMap["email"] == "alice-paidby@test.com" {
+			aliceID = int(mMap["user_id"].(float64))
+		} else if mMap["email"] == "bob-paidby@test.com" {
+			bobID = int(mMap["user_id"].(float64))
+		}
+	}
+
+	// Create expense 1 paid by Alice
+	doJSON(r, "POST", fmt.Sprintf("/api/groups/%d/expenses", groupID), map[string]interface{}{
+		"amount": 30.0, "description": "Coffee", "split_type": "equal",
+		"splits": []map[string]interface{}{{"user_id": aliceID}, {"user_id": bobID}},
+	}, aliceCookies...)
+
+	// Create expense 2 paid by Bob
+	doJSON(r, "POST", fmt.Sprintf("/api/groups/%d/expenses", groupID), map[string]interface{}{
+		"amount": 60.0, "description": "Dinner", "split_type": "equal",
+		"splits": []map[string]interface{}{{"user_id": aliceID}, {"user_id": bobID}},
+	}, bobCookies...)
+
+	// Query with ?paid_by=aliceID
+	w = doJSON(r, "GET", fmt.Sprintf("/api/groups/%d/expenses?paid_by=%d", groupID, aliceID), nil, aliceCookies...)
+	var aliceFiltered []map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &aliceFiltered)
+	if len(aliceFiltered) != 1 {
+		t.Fatalf("expected 1 expense paid by Alice, got %d", len(aliceFiltered))
+	}
+	if aliceFiltered[0]["description"] != "Coffee" {
+		t.Errorf("expected Coffee, got %v", aliceFiltered[0]["description"])
+	}
+
+	// Query with ?paid_by=bobID
+	w = doJSON(r, "GET", fmt.Sprintf("/api/groups/%d/expenses?paid_by=%d", groupID, bobID), nil, aliceCookies...)
+	var bobFiltered []map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &bobFiltered)
+	if len(bobFiltered) != 1 {
+		t.Fatalf("expected 1 expense paid by Bob, got %d", len(bobFiltered))
+	}
+	if bobFiltered[0]["description"] != "Dinner" {
+		t.Errorf("expected Dinner, got %v", bobFiltered[0]["description"])
+	}
+}
+
+

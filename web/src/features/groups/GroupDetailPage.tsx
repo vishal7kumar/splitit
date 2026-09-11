@@ -6,7 +6,13 @@ import { listExpenses, deleteExpense, type Expense } from "../../api/expenses";
 import {
   getGroupBalances,
   createSettlement,
+  listSettlements,
+  type Settlement,
 } from "../../api/settlements";
+
+export type GroupTransaction =
+  | ({ txnType: "expense" } & Expense)
+  | ({ txnType: "settlement" } & Settlement);
 import { useAuth } from "../auth/useAuth";
 import { formatExpenseDate } from "../../lib/formatDate";
 import { formatCurrency } from "../../lib/currency";
@@ -20,6 +26,7 @@ export default function GroupDetailPage() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [filterPaidBy, setFilterPaidBy] = useState("");
   const [settleDirection, setSettleDirection] = useState<"paid" | "received">("paid");
   const [settleOtherId, setSettleOtherId] = useState<number>(0);
   const [settleAmount, setSettleAmount] = useState("");
@@ -32,12 +39,23 @@ export default function GroupDetailPage() {
     queryFn: () => getGroup(groupId),
   });
 
+  const memberMap = useMemo(() => {
+    if (!data?.members) return {};
+    return Object.fromEntries(data.members.map((m) => [m.user_id, m]));
+  }, [data?.members]);
+
   const { data: expenses = [] } = useQuery({
-    queryKey: ["expenses", groupId, search],
+    queryKey: ["expenses", groupId, search, filterPaidBy],
     queryFn: () =>
       listExpenses(groupId, {
         q: search || undefined,
+        paid_by: filterPaidBy || undefined,
       }),
+  });
+
+  const { data: settlements = [] } = useQuery({
+    queryKey: ["settlements", groupId],
+    queryFn: () => listSettlements(groupId),
   });
 
   const { data: balanceData } = useQuery({
@@ -105,11 +123,49 @@ export default function GroupDetailPage() {
     },
   });
 
-  // Group expenses by Month (e.g. "June 2026")
-  const groupedExpenses = useMemo(() => {
-    const groups: { monthKey: string; monthLabel: string; items: Expense[] }[] = [];
-    expenses.forEach((exp: Expense) => {
-      const parts = exp.date.split("-");
+  const transactions = useMemo(() => {
+    const expenseItems: GroupTransaction[] = expenses.map((e) => ({
+      ...e,
+      txnType: "expense" as const,
+    }));
+
+    let filteredSettlements = settlements;
+    if (filterPaidBy) {
+      filteredSettlements = filteredSettlements.filter(
+        (s) => String(s.paid_by) === filterPaidBy
+      );
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      filteredSettlements = filteredSettlements.filter((s) => {
+        const paidByName = memberMap[s.paid_by]?.name || s.paid_by_name || "";
+        const paidToName = memberMap[s.paid_to]?.name || s.paid_to_name || "";
+        return (
+          "settlement".includes(q) ||
+          "payment".includes(q) ||
+          paidByName.toLowerCase().includes(q) ||
+          paidToName.toLowerCase().includes(q)
+        );
+      });
+    }
+
+    const settlementItems: GroupTransaction[] = filteredSettlements.map((s) => ({
+      ...s,
+      txnType: "settlement" as const,
+    }));
+
+    return [...expenseItems, ...settlementItems].sort((a, b) => {
+      const dateCmp = b.date.localeCompare(a.date);
+      if (dateCmp !== 0) return dateCmp;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [expenses, settlements, search, filterPaidBy, memberMap]);
+
+  // Group transactions by Month (e.g. "June 2026")
+  const groupedTransactions = useMemo(() => {
+    const groups: { monthKey: string; monthLabel: string; items: GroupTransaction[] }[] = [];
+    transactions.forEach((txn) => {
+      const parts = txn.date.split("-");
       let monthLabel = "Unknown Month";
       let monthKey = "unknown";
       if (parts.length >= 2) {
@@ -119,36 +175,43 @@ export default function GroupDetailPage() {
         monthLabel = dateObj.toLocaleDateString("en-US", { month: "long", year: "numeric" });
         monthKey = `${year}-${parts[1]}`;
       }
-      
+
       let groupObj = groups.find((g) => g.monthKey === monthKey);
       if (!groupObj) {
         groupObj = { monthKey, monthLabel, items: [] };
         groups.push(groupObj);
       }
-      groupObj.items.push(exp);
+      groupObj.items.push(txn);
     });
     return groups;
-  }, [expenses]);
+  }, [transactions]);
 
-  // List of all months that have expenses + current month
+  // List of all months that have expenses/settlements + current month
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
-    
+
     // Add current month as a default fallback
     const now = new Date();
     const fallbackMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     months.add(fallbackMonthKey);
-    
+
     expenses.forEach((exp) => {
       const parts = exp.date.split("-");
       if (parts.length >= 2) {
         months.add(`${parts[0]}-${parts[1]}`);
       }
     });
-    
+
+    settlements.forEach((sett) => {
+      const parts = sett.date.split("-");
+      if (parts.length >= 2) {
+        months.add(`${parts[0]}-${parts[1]}`);
+      }
+    });
+
     // Sort descending
     return Array.from(months).sort((a, b) => b.localeCompare(a));
-  }, [expenses]);
+  }, [expenses, settlements]);
 
   const [selectedMonth, setSelectedMonth] = useState<string>("");
 
@@ -203,7 +266,6 @@ export default function GroupDetailPage() {
   const { group, members } = data;
   const currentMember = members.find((m) => m.user_id === user?.id);
   const isAdmin = currentMember?.role === "admin";
-  const memberMap = Object.fromEntries(members.map((m) => [m.user_id, m]));
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -399,32 +461,147 @@ export default function GroupDetailPage() {
       {/* Tab Content */}
       {activeTab === "expenses" && (
         <section className="mb-8">
-          <div className="mb-4">
-            <input
-              type="text"
-              placeholder="Search expenses..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 shadow-sm"
-            />
+          <div className="mb-4 flex flex-col sm:flex-row gap-2.5">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Search expenses..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 shadow-sm"
+              />
+              <svg
+                className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                />
+              </svg>
+            </div>
+            <div className="sm:w-56 shrink-0">
+              <select
+                aria-label="Filter by payer"
+                value={filterPaidBy}
+                onChange={(e) => setFilterPaidBy(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200 shadow-sm text-gray-700 cursor-pointer"
+              >
+                <option value="">All payers</option>
+                {data?.members.map((m) => (
+                  <option key={m.user_id} value={m.user_id}>
+                    Paid by: {m.user_id === user?.id ? "You" : (m.name || m.email)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {expenses.length === 0 ? (
-            <p className="text-gray-400 text-sm italic py-4">No expenses yet.</p>
+          {transactions.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-400 text-sm italic">
+                {search || filterPaidBy
+                  ? "No expenses match your search or filter."
+                  : "No expenses yet."}
+              </p>
+              {(search || filterPaidBy) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    setFilterPaidBy("");
+                  }}
+                  className="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-700 underline cursor-pointer"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
           ) : (
             <div className="space-y-6">
-              {groupedExpenses.map((groupObj) => (
+              {groupedTransactions.map((groupObj) => (
                 <div key={groupObj.monthKey} className="relative">
                   <div className="sticky top-0 bg-gray-50/95 backdrop-blur-xs py-2 z-10 flex items-center justify-between border-b border-gray-200 mb-3">
                     <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                       {groupObj.monthLabel}
                     </span>
                     <span className="text-xs text-gray-400 font-semibold">
-                      {groupObj.items.length} {groupObj.items.length === 1 ? "expense" : "expenses"}
+                      {groupObj.items.length} {groupObj.items.length === 1 ? "entry" : "entries"}
                     </span>
                   </div>
                   <ul className="space-y-3">
-                    {groupObj.items.map((exp: Expense) => {
+                    {groupObj.items.map((txn) => {
+                      if (txn.txnType === "settlement") {
+                        const isPayer = txn.paid_by === user?.id;
+                        const isReceiver = txn.paid_to === user?.id;
+                        const isInvolved = isPayer || isReceiver;
+                        const payerName = isPayer ? "You" : (memberMap[txn.paid_by]?.name || txn.paid_by_name || "A member");
+                        const recipientName = isReceiver ? "you" : (memberMap[txn.paid_to]?.name || txn.paid_to_name || "a member");
+
+                        return (
+                          <li
+                            key={`settlement-${txn.id}`}
+                            className="flex flex-col gap-3 border border-emerald-200/80 bg-gradient-to-r from-emerald-50/40 via-white to-white rounded-xl p-4 sm:flex-row sm:items-center sm:justify-between transition-all duration-200 shadow-sm border-l-4 border-l-emerald-500"
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 shadow-xs">
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  strokeWidth={2.5}
+                                  stroke="currentColor"
+                                  className="w-4 h-4"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                </svg>
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="font-semibold break-words text-gray-900 text-sm flex items-center gap-2 flex-wrap">
+                                  <span>
+                                    {payerName} paid {recipientName}
+                                  </span>
+                                  <span className="inline-flex items-center rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200 uppercase tracking-wider">
+                                    Settlement
+                                  </span>
+                                </div>
+                                <div className="break-words text-xs text-gray-500 mt-1 font-medium">
+                                  {!isInvolved ? (
+                                    <>
+                                      <span className="text-gray-400 font-medium">You were not involved</span>
+                                      {" "}&middot; {formatExpenseDate(txn.date)}
+                                    </>
+                                  ) : (
+                                    <>
+                                      Payment &middot; {formatExpenseDate(txn.date)}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex shrink-0 items-center justify-end gap-3 sm:gap-4 border-t border-gray-100 pt-2 sm:border-t-0 sm:pt-0">
+                              {isInvolved && (
+                                <div className="text-right shrink-0">
+                                  <span className="block text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-green-600">
+                                    {isPayer ? "you paid" : "you received"}
+                                  </span>
+                                  <span className="block font-bold text-sm sm:text-base text-green-600">
+                                    {isReceiver ? "+" : ""}{formatCurrency(group.currency, txn.amount)}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      }
+
+                      // Otherwise, render expense
+                      const exp = txn;
                       const isPayer = exp.paid_by === user?.id;
                       const mySplit = exp.splits?.find((s) => s.user_id === user?.id);
                       const myShare = exp.your_share ?? (mySplit?.share_amount ?? 0);
@@ -439,7 +616,7 @@ export default function GroupDetailPage() {
 
                       return (
                         <li
-                          key={exp.id}
+                          key={`expense-${exp.id}`}
                           role="button"
                           tabIndex={0}
                           onClick={() => navigate(`/groups/${groupId}/expenses/${exp.id}`)}

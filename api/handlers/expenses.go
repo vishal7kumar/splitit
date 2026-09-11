@@ -178,9 +178,11 @@ func (h *ExpenseHandler) List(c *gin.Context) {
 		argIdx++
 	}
 	if paidBy := c.Query("paid_by"); paidBy != "" {
-		query += fmt.Sprintf(" AND paid_by = $%d", argIdx)
-		args = append(args, paidBy)
-		argIdx++
+		if paidByID, err := strconv.Atoi(paidBy); err == nil {
+			query += fmt.Sprintf(" AND paid_by = $%d", argIdx)
+			args = append(args, paidByID)
+			argIdx++
+		}
 	}
 	if from := c.Query("from"); from != "" {
 		query += fmt.Sprintf(" AND date >= $%d", argIdx)

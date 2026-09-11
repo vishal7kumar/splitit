@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import GroupDetailPage from "./GroupDetailPage";
-import { getGroupBalances } from "../../api/settlements";
+import { getGroupBalances, listSettlements } from "../../api/settlements";
 import { listExpenses } from "../../api/expenses";
 
 vi.mock("../auth/useAuth", () => ({
@@ -61,6 +61,7 @@ vi.mock("../../api/expenses", () => ({
 vi.mock("../../api/settlements", () => ({
   getGroupBalances: vi.fn().mockResolvedValue({ balances: [], debts: [] }),
   createSettlement: vi.fn(),
+  listSettlements: vi.fn().mockResolvedValue([]),
 }));
 
 function renderWithProviders() {
@@ -247,5 +248,111 @@ describe("GroupDetailPage", () => {
     expect(screen.queryByText("you paid")).not.toBeInTheDocument();
     expect(screen.queryByText("you borrowed")).not.toBeInTheDocument();
   });
+
+  it("filters expenses by payer when Paid By dropdown is changed", async () => {
+    renderWithProviders();
+
+    expect(await screen.findByRole("heading", { name: "Trip" })).toBeInTheDocument();
+
+    const payerSelect = screen.getByLabelText("Filter by payer");
+    expect(payerSelect).toBeInTheDocument();
+
+    // Change payer filter to user 1
+    fireEvent.change(payerSelect, { target: { value: "1" } });
+
+    expect(listExpenses).toHaveBeenCalledWith(1, expect.objectContaining({ paid_by: "1" }));
+  });
+
+  it("shows 'No expenses match your search or filter.' and resets filters when Clear filters is clicked", async () => {
+    vi.mocked(listExpenses).mockResolvedValueOnce([]);
+
+    renderWithProviders();
+
+    expect(await screen.findByRole("heading", { name: "Trip" })).toBeInTheDocument();
+
+    const searchInput = screen.getByPlaceholderText("Search expenses...");
+    fireEvent.change(searchInput, { target: { value: "Nonexistent" } });
+
+    expect(await screen.findByText("No expenses match your search or filter.")).toBeInTheDocument();
+
+    const clearBtn = screen.getByRole("button", { name: "Clear filters" });
+    fireEvent.click(clearBtn);
+
+    expect(searchInput).toHaveValue("");
+  });
+
+  it("renders a settlement as a special payment entry when user is the payer", async () => {
+    vi.mocked(listExpenses).mockResolvedValueOnce([]);
+    vi.mocked(listSettlements).mockResolvedValueOnce([
+      {
+        id: 101,
+        group_id: 1,
+        paid_by: 1,
+        paid_to: 2,
+        amount: 50,
+        date: "2026-06-15",
+        created_at: "2026-06-15T10:00:00Z",
+        paid_by_name: "Admin",
+        paid_to_name: "Bob",
+      },
+    ]);
+
+    renderWithProviders();
+
+    expect(await screen.findByText("Settlement")).toBeInTheDocument();
+    expect(screen.getByText("You paid Bob")).toBeInTheDocument();
+    expect(screen.getByText("you paid")).toBeInTheDocument();
+    expect(screen.getByText(/50/)).toBeInTheDocument();
+  });
+
+  it("renders a settlement as a special payment entry when user received payment", async () => {
+    vi.mocked(listExpenses).mockResolvedValueOnce([]);
+    vi.mocked(listSettlements).mockResolvedValueOnce([
+      {
+        id: 102,
+        group_id: 1,
+        paid_by: 2,
+        paid_to: 1,
+        amount: 75,
+        date: "2026-06-16",
+        created_at: "2026-06-16T11:00:00Z",
+        paid_by_name: "Bob",
+        paid_to_name: "Admin",
+      },
+    ]);
+
+    renderWithProviders();
+
+    expect(await screen.findByText("Settlement")).toBeInTheDocument();
+    expect(screen.getByText("Bob paid you")).toBeInTheDocument();
+    expect(screen.getByText("you received")).toBeInTheDocument();
+    expect(screen.getByText(/\+.*75/)).toBeInTheDocument();
+  });
+
+  it("renders a settlement between two other members as not involved", async () => {
+    vi.mocked(listExpenses).mockResolvedValueOnce([]);
+    vi.mocked(listSettlements).mockResolvedValueOnce([
+      {
+        id: 103,
+        group_id: 1,
+        paid_by: 2,
+        paid_to: 3,
+        amount: 40,
+        date: "2026-06-17",
+        created_at: "2026-06-17T12:00:00Z",
+        paid_by_name: "Bob",
+        paid_to_name: "Charlie",
+      },
+    ]);
+
+    renderWithProviders();
+
+    expect(await screen.findByText("Settlement")).toBeInTheDocument();
+    expect(screen.getByText("Bob paid Charlie")).toBeInTheDocument();
+    expect(screen.getByText("You were not involved")).toBeInTheDocument();
+    expect(screen.queryByText("you paid")).not.toBeInTheDocument();
+    expect(screen.queryByText("you received")).not.toBeInTheDocument();
+  });
 });
+
 
