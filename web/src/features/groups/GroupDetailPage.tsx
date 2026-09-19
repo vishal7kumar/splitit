@@ -186,14 +186,9 @@ export default function GroupDetailPage() {
     return groups;
   }, [transactions]);
 
-  // List of all months that have expenses/settlements + current month
+  // List of all months that have expenses/settlements, fallback to current month if empty
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
-
-    // Add current month as a default fallback
-    const now = new Date();
-    const fallbackMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    months.add(fallbackMonthKey);
 
     expenses.forEach((exp) => {
       const parts = exp.date.split("-");
@@ -209,15 +204,23 @@ export default function GroupDetailPage() {
       }
     });
 
+    // If no transactions exist, fallback to current month
+    if (months.size === 0) {
+      const now = new Date();
+      const fallbackMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      months.add(fallbackMonthKey);
+    }
+
     // Sort descending
     return Array.from(months).sort((a, b) => b.localeCompare(a));
   }, [expenses, settlements]);
 
-  const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("");
 
+  const latestMonth = availableMonths.length > 0 ? availableMonths[0] : "";
   const currentPeriod = (selectedPeriod && (selectedPeriod === "all" || availableMonths.includes(selectedPeriod)))
     ? selectedPeriod
-    : "all";
+    : latestMonth;
 
   const getPeriodLabel = (periodKey: string) => {
     if (periodKey === "all") return "All time";
