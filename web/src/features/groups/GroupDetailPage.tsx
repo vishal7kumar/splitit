@@ -213,32 +213,33 @@ export default function GroupDetailPage() {
     return Array.from(months).sort((a, b) => b.localeCompare(a));
   }, [expenses, settlements]);
 
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
 
-  const currentMonthKey = (selectedMonth && availableMonths.includes(selectedMonth))
-    ? selectedMonth
-    : (availableMonths.length > 0 ? availableMonths[0] : "");
+  const currentPeriod = (selectedPeriod && (selectedPeriod === "all" || availableMonths.includes(selectedPeriod)))
+    ? selectedPeriod
+    : "all";
 
-  const getMonthLabel = (monthKey: string) => {
-    const parts = monthKey.split("-");
-    if (parts.length !== 2) return monthKey;
+  const getPeriodLabel = (periodKey: string) => {
+    if (periodKey === "all") return "All time";
+    const parts = periodKey.split("-");
+    if (parts.length !== 2) return periodKey;
     const date = new Date(Number(parts[0]), parseInt(parts[1], 10) - 1, 1);
     return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   };
 
-  const monthlyExpenses = useMemo(() => {
-    if (!currentMonthKey) return [];
-    return expenses.filter((exp) => exp.date.startsWith(currentMonthKey));
-  }, [expenses, currentMonthKey]);
+  const periodExpenses = useMemo(() => {
+    if (currentPeriod === "all") return expenses;
+    return expenses.filter((exp) => exp.date.startsWith(currentPeriod));
+  }, [expenses, currentPeriod]);
 
   const totalGroupSpend = useMemo(() => {
-    return monthlyExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
-  }, [monthlyExpenses]);
+    return periodExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
+  }, [periodExpenses]);
 
   const memberSpends = useMemo(() => {
     if (!data) return [];
     return data.members.map((member) => {
-      const amountPaid = monthlyExpenses
+      const amountPaid = periodExpenses
         .filter((exp) => exp.paid_by === member.user_id)
         .reduce((sum, exp) => sum + Number(exp.amount), 0);
       return {
@@ -246,7 +247,7 @@ export default function GroupDetailPage() {
         amountPaid,
       };
     }).sort((a, b) => b.amountPaid - a.amountPaid);
-  }, [data, monthlyExpenses]);
+  }, [data, periodExpenses]);
 
   const myBalance = useMemo(() => {
     if (!balanceData || !balanceData.balances || !user) return 0;
@@ -862,26 +863,27 @@ export default function GroupDetailPage() {
 
       {activeTab === "totals" && (
         <section className="mb-8 space-y-6">
-          {/* Month Selector & Overall Stats */}
+          {/* Period Selector & Overall Stats */}
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Monthly Spending Totals</h2>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Spending Totals</h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Summary of total spends by the group and individual members.</p>
               </div>
               <div className="flex items-center gap-2">
-                <label htmlFor="totals-month-select" className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                  Month:
+                <label htmlFor="totals-period-select" className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                  Period:
                 </label>
                 <select
-                  id="totals-month-select"
-                  value={currentMonthKey}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  id="totals-period-select"
+                  value={currentPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
                   className="text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer text-gray-800 dark:text-gray-200 font-semibold transition-all"
                 >
+                  <option value="all">All time</option>
                   {availableMonths.map((m) => (
                     <option key={m} value={m}>
-                      {getMonthLabel(m)}
+                      {getPeriodLabel(m)}
                     </option>
                   ))}
                 </select>
@@ -896,7 +898,7 @@ export default function GroupDetailPage() {
                 {formatCurrency(group.currency, totalGroupSpend)}
               </span>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 font-medium">
-                For {getMonthLabel(currentMonthKey)} &middot; {monthlyExpenses.length} {monthlyExpenses.length === 1 ? "expense" : "expenses"}
+                For {getPeriodLabel(currentPeriod)} &middot; {periodExpenses.length} {periodExpenses.length === 1 ? "expense" : "expenses"}
               </p>
             </div>
           </div>
@@ -906,7 +908,7 @@ export default function GroupDetailPage() {
             <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">Spends by Member</h3>
             
             {totalGroupSpend === 0 ? (
-              <p className="text-gray-400 dark:text-gray-500 text-xs italic py-2">No spends recorded for this month.</p>
+              <p className="text-gray-400 dark:text-gray-500 text-xs italic py-2">No spends recorded for this period.</p>
             ) : (
               <ul className="space-y-4.5">
                 {memberSpends.map((m) => {
@@ -935,7 +937,7 @@ export default function GroupDetailPage() {
                           {percentage.toFixed(1)}% of total
                         </span>
                         <span>
-                          {monthlyExpenses.filter((e) => e.paid_by === m.user_id).length} paid
+                          {periodExpenses.filter((e) => e.paid_by === m.user_id).length} paid
                         </span>
                       </div>
                     </li>
