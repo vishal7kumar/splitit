@@ -3,7 +3,6 @@ import {
   formatCurrency,
   getCurrencySymbol,
   formatIndianNumber,
-  currencySymbols,
 } from "./currency";
 
 describe("currency utility", () => {
